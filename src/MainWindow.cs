@@ -5,6 +5,7 @@ using ElectroSim.Maths;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using MonoGame.Extended;
 using Component = ElectroSim.Content.Component;
 
 namespace ElectroSim;
@@ -178,10 +179,15 @@ public class MainWindow : Game
                 var dist = mousePos - _initialMousePos;
 
                 var brushSize = _activeBrush.GetSize();
-
-                for (var x = 0; x < dist.X; x+=(int)brushSize.X)
+                
+                var signX = dist.X < 0;
+                var signY = dist.Y < 0;
+                var sign = new Vector2(signX ? -1 : 1, signY ? -1 : 1);
+                
+                
+                for (var x = 0; signX ? x > dist.X : x < dist.X; x+= (int)(brushSize.X * sign.X))
                 {
-                    for (var y = 0; y < dist.Y; y+=(int)brushSize.Y)
+                    for (var y = 0; signY ? y > dist.Y : y < dist.Y; y+=(int)(brushSize.Y * sign.Y))
                     {
                         var brushComponent = _activeBrush.Copy();
                         brushComponent.SetPos(new Vector2(x + _initialMousePos.X, y +_initialMousePos.Y));
@@ -278,6 +284,8 @@ public class MainWindow : Game
         {
             brushComponent.Render(_spriteBatch, (_isOverlapping ? Color.Red : Color.White) * 0.25f);
         }
+
+        // TODO: Menus / Brush Selection
         
         _spriteBatch.End();
         
