@@ -1,0 +1,4 @@
+Source File,Dest File,Processor Type,Content Type,Source File Size,Dest File Size,Build Seconds
+"C:/Code/C#/ElectroSim/assets/textures/chip.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/textures/chip.xnb","TextureProcessor","Texture2DContent",660,4181,0.2651305
+"C:/Code/C#/ElectroSim/assets/textures/component.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/textures/component.xnb","TextureProcessor","Texture2DContent",791,4181,0.0041201
+"C:/Code/C#/ElectroSim/assets/textures/missing.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/textures/missing.xnb","TextureProcessor","Texture2DContent",675,4181,0.0046744
