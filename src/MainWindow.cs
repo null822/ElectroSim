@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using ElectroSim.Content;
 using ElectroSim.Maths;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -15,17 +14,16 @@ public class MainWindow : Game
     // Debug/Dev
     private readonly Component _activeBrush = ElectroSim.Components.Capacitor.GetVariant(1e-6);
     
-    
     // rendering
     private readonly GraphicsDeviceManager _graphics;
     private static SpriteBatch _spriteBatch;
 
     // game logic
-    private readonly Dictionary<Vector2, List<Component>> _components = new();
+    private readonly Dictionary<Vector2,List<Component>> _components = new();
     
     
     private static readonly List<Component> Brush = new();
-    private static bool _isOverlapping = false;
+    private static bool _isOverlapping;
     private static Vector2 _initialMousePos = Vector2.Zero;
     
     private static double _scale = 1;
@@ -86,9 +84,6 @@ public class MainWindow : Game
         // Logic
         _dimensions = new Vector2(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
         
-        var center = Vector2.Divide(_dimensions, 2);
-        var scaleVec = new Vector2((float)_scale, (float)_scale);
-
         
         // Controls
         
@@ -97,7 +92,7 @@ public class MainWindow : Game
 
         var mouseScreenCords = new Vector2(mouseState.X, mouseState.Y);
 
-        const int min = 600;
+        const int min = 450;
         const int max = 2400;
 
         _scrollWheelOffset = (mouseState.ScrollWheelValue - _scrollWheelOffset) switch
@@ -111,7 +106,7 @@ public class MainWindow : Game
         if (mouseScreenCords.X < 0 || mouseScreenCords.X > _dimensions.X || mouseScreenCords.Y < 0 || mouseScreenCords.Y > _dimensions.Y)
             return;
         
-        var mousePos = ((mouseScreenCords - center) / scaleVec) - _translation + center;
+        var mousePos = ScreenToGameCoords(mouseScreenCords);
         _scale = Math.Pow((mouseState.ScrollWheelValue - _scrollWheelOffset) / 1024f, 4);
         
         
@@ -182,24 +177,6 @@ public class MainWindow : Game
 
                 var dist = mousePos - _initialMousePos;
 
-                //var x = Math.Abs(dist2D.X) > Math.Abs(dist2D.Y);
-
-                //var dist = x ? dist2D.X : dist2D.Y;
-
-                /*for (var i = 0;
-                     Math.Abs(i) < Math.Abs(dist);
-                     i += (int)(x ? _activeBrush.GetSize().X : _activeBrush.GetSize().Y) * (dist < 0 ? -1 : 1))
-                {
-                    var brushComponent = _activeBrush.Copy();
-                    brushComponent.SetPos(
-                        x
-                            ? new Vector2(i + _initialMousePos.X, _initialMousePos.Y)
-                            : new Vector2(_initialMousePos.X, i + _initialMousePos.Y)
-                    );
-
-                    Brush.Add(brushComponent);
-                }*/
-
                 var brushSize = _activeBrush.GetSize();
 
                 for (var x = 0; x < dist.X; x+=(int)brushSize.X)
@@ -228,7 +205,7 @@ public class MainWindow : Game
             }
             else
             {
-                _translation = _prevTranslation + (mouseScreenCords - _middleMouseCords) / scaleVec;
+                _translation = _prevTranslation + (mouseScreenCords - _middleMouseCords) / (float)_scale;
             }
         }
         
@@ -266,18 +243,41 @@ public class MainWindow : Game
         
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
 
-        // TODO: culling
-        foreach (var component in _components.SelectMany(collisionBox => collisionBox.Value))
+        #region Culling
+        
+        var center = ScreenToGameCoords(_dimensions / 2f);
+        
+        var gridPos = center / Constants.CollisionGridSize;
+        gridPos.Ceiling();
+         
+        var gridWidth = (int)(_dimensions.X / _scale / Constants.CollisionGridSize);
+        var gridHeight = (int)(_dimensions.Y / _scale / Constants.CollisionGridSize);
+         
+        var visibleComponents = new List<List<Component>>();
+        
+        for (var x = -(int)Math.Floor(gridWidth/2f)-2; x <= (int)Math.Ceiling(gridWidth/2f)+2; x++)
+        {
+            for (var y = -(int)Math.Floor(gridHeight/2f)-2; y <= (int)Math.Ceiling(gridHeight/2f)+2; y++)
+            {
+                if (!_components.TryGetValue(new Vector2(x + gridPos.X, y + gridPos.Y), out var collisionSquare))
+                    continue;
+                
+                visibleComponents.Add(collisionSquare);
+            }
+        }
+        
+        #endregion
+        
+        foreach (var component in visibleComponents.SelectMany(a => a))
         {
             component.Render(_spriteBatch);
         }
-
+        visibleComponents.Clear();
+        
         foreach (var brushComponent in Brush)
         {
             brushComponent.Render(_spriteBatch, (_isOverlapping ? Color.Red : Color.White) * 0.25f);
         }
-        
-        ElectroSim.Components.Capacitor.GetVariant(1e-6).Render(_spriteBatch);
         
         _spriteBatch.End();
         
@@ -346,14 +346,32 @@ public class MainWindow : Game
         gridPos.Ceiling();
         
         if (!_components.ContainsKey(gridPos))
-        {
             _components.Add(gridPos, new List<Component>());
-        }
-                
+        
         _components[gridPos].Add(component.Copy());
     }
     
-
+    /// <summary>
+    /// Converts coords from the screen (like mouse pos) into game coords (like positions of components).
+    /// </summary>
+    /// <param name="screenCords">The coords from the screen to convert</param>
+    private static Vector2 ScreenToGameCoords(Vector2 screenCords)
+    {
+        var center = _dimensions / 2f;
+        return (screenCords - center) / (float)_scale - _translation + center;
+    }
+    
+    /// <summary>
+    /// Converts coords from the game (like positions of components) into screen coords (like mouse pos).
+    /// </summary>
+    /// <param name="gameCoords">The coords from the game to convert</param>
+    private static Vector2 GameToScreenCoords(Vector2 gameCoords)
+    {
+        var center = _dimensions / 2f;
+        return new Vector2((float)_scale) * (gameCoords + _translation - center) + center;
+    }
+    
+    
     /// <summary>
     /// Update the program when the size changes.
     /// </summary>
