@@ -1,6 +1,4 @@
-﻿using System;
-using ElectroSim.Content;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace ElectroSim.Content;
@@ -11,16 +9,16 @@ namespace ElectroSim.Content;
 public class Component
 {
     private Vector2 _pos;
-    private readonly string _texName;
+    private readonly string _texture;
 
     protected readonly ComponentDetails Details;
-
-    protected Component(ComponentDetails details, string texNameName = "chip", Vector2? pos = null)
+    
+    protected Component(ComponentDetails details, string texture = "missing", Vector2? pos = null)
     {
         var posNonNull = pos ?? Vector2.Zero;
 
         Details = details;
-        _texName = texNameName;
+        _texture = texture;
         _pos = AlignPos(posNonNull);
     }
 
@@ -39,7 +37,7 @@ public class Component
 
         var center = Vector2.Divide(MainWindow.GetScreenSize(), 2);
 
-        var texture = Textures.GetTexture(_texName);
+        var texture = Textures.GetTexture(_texture);
         
         spriteBatch.Draw(
             texture,
@@ -66,9 +64,6 @@ public class Component
         pos *= Constants.MinComponentSize;
 
         return pos;
-        
-        
-        return new Vector2((float)(Math.Round(pos.X / Constants.MinComponentSize) * Constants.MinComponentSize), (float)(Math.Round(pos.Y / Constants.MinComponentSize) * Constants.MinComponentSize));
     }
     
     /// <summary>
@@ -102,10 +97,11 @@ public class Component
     /// </summary>
     public Vector2 GetSize()
     {
-        var texture = Textures.GetTexture(_texName);
+        var texture = Textures.GetTexture(_texture);
         return new Vector2(texture.Width, texture.Height);
     }
-
+    
+    
     /// <summary>
     /// Returns the details of the component.
     /// </summary>
@@ -119,7 +115,7 @@ public class Component
     /// </summary>
     public Component Copy()
     {
-        return new Component(Details, _texName, _pos);
+        return new Component(Details, _texture, _pos);
     }
 
 }

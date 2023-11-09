@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using ElectroSim.Content.ComponentTypes;
 using ElectroSim.Maths;
 
 namespace ElectroSim.Content;
 
-public class ComponentVariations
+public class ComponentVariations<T> where T : Component
 {
     private readonly Dictionary<double, Component> _components = new();
     private readonly PropertyType _variablePropertyType;
@@ -23,12 +25,13 @@ public class ComponentVariations
                 { variablePropertyType, new Value(value, variableUnit) }
             };
             
-            _components.Add(value, new Capacitor(new ComponentDetails(
-                    displayNameBase + " " + new Value(value, variableUnit),
-                    description,
-                    properties
+            _components.Add(value, (T)Activator.CreateInstance(typeof(T), new ComponentDetails(
+                        displayNameBase + " " + new Value(value, variableUnit),
+                        description,
+                        properties
                     )
-            ));
+                )
+            );
         }
     }
     

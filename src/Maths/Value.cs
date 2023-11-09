@@ -1,4 +1,5 @@
-﻿using ElectroSim.Content;
+﻿using System;
+using ElectroSim.Content;
 
 namespace ElectroSim.Maths;
 
@@ -26,22 +27,27 @@ public class Value
     
     public static Value operator *(Value value1, Value value2)
     {
-        value1._value *= value2._value;
-        return value1;
+        return new Value(value1._value * value2._value, value1._unit * value2._unit);
     }
     public static Value operator /(Value value1, Value value2)
     {
-        value1._value /= value2._value;
-        return value1;
+        return new Value(value1._value / value2._value, value1._unit / value2._unit);
+
     }
 
     public static Value operator +(Value value1, Value value2)
     {
+        if (value1._unit != value2._unit)
+            Util.ConsoleWarn($"Unit {value1._unit} and {value2._unit} are being added, but are not the same");
+        
         value1._value += value2._value;
         return value1;
     }
     public static Value operator -(Value value1, Value value2)
     {
+        if (value1._unit != value2._unit)
+            Util.ConsoleWarn($"Unit {value1._unit} and {value2._unit} are being added, but are not the same");
+
         value1._value -= value2._value;
         return value1;
     }
@@ -80,4 +86,10 @@ public class Value
     {
         _value = value;
     }
+
+    public static implicit operator Value(double value)
+    {
+        return new Value(value, Units.Null);
+    }
+    
 }

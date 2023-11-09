@@ -1,7 +1,20 @@
 {
   "version": 3,
   "targets": {
-    "net6.0": {
+    "net7.0": {
+      "Autofac/5.2.0": {
+        "type": "package",
+        "compile": {
+          "lib/netstandard2.1/Autofac.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/netstandard2.1/Autofac.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
       "MonoGame.Content.Builder.Task/3.8.1.303": {
         "type": "package",
         "build": {
@@ -83,6 +96,102 @@
           }
         }
       },
+      "MonoGame.Extended.Content.Pipeline/3.8.0": {
+        "type": "package",
+        "dependencies": {
+          "Autofac": "5.2.0",
+          "MonoGame.Extended": "3.8.0",
+          "MonoGame.Extended.Tiled": "3.8.0",
+          "Newtonsoft.Json": "12.0.3"
+        },
+        "contentFiles": {
+          "contentFiles/any/netcoreapp3.1/CppNet.dll": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/SharpDX.D3DCompiler.dll": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/SharpDX.D3DCompiler.xml": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/SharpDX.dll": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/SharpDX.xml": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/libmojoshader_64.dll": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/mgfxc.deps.json": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/mgfxc.dll": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/mgfxc.exe": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/mgfxc.pdb": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/mgfxc.runtimeconfig.dev.json": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          },
+          "contentFiles/any/netcoreapp3.1/mgfxc.runtimeconfig.json": {
+            "buildAction": "Content",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          }
+        }
+      },
+      "MonoGame.Extended.Graphics/3.8.0": {
+        "type": "package",
+        "dependencies": {
+          "MonoGame.Extended": "3.8.0"
+        },
+        "compile": {
+          "lib/netstandard2.0/MonoGame.Extended.Graphics.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/MonoGame.Extended.Graphics.dll": {}
+        }
+      },
+      "MonoGame.Extended.Tiled/3.8.0": {
+        "type": "package",
+        "dependencies": {
+          "MonoGame.Extended": "3.8.0",
+          "MonoGame.Extended.Graphics": "3.8.0"
+        },
+        "compile": {
+          "lib/netstandard2.0/MonoGame.Extended.Tiled.dll": {}
+        },
+        "runtime": {
+          "lib/netstandard2.0/MonoGame.Extended.Tiled.dll": {}
+        }
+      },
       "MonoGame.Framework.DesktopGL/3.8.1.303": {
         "type": "package",
         "compile": {
@@ -145,6 +254,27 @@
     }
   },
   "libraries": {
+    "Autofac/5.2.0": {
+      "sha512": "V8dBH0dsv75uDzl7Sw+HkhKDPUw2eXnlMjcSVMH+tLo2s67MpTKGyDj1pDcpR+IF2u4YRs0s3/x7R88YJzIWvg==",
+      "type": "package",
+      "path": "autofac/5.2.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "autofac.5.2.0.nupkg.sha512",
+        "autofac.nuspec",
+        "icon.png",
+        "lib/net461/Autofac.dll",
+        "lib/net461/Autofac.pdb",
+        "lib/net461/Autofac.xml",
+        "lib/netstandard2.0/Autofac.dll",
+        "lib/netstandard2.0/Autofac.pdb",
+        "lib/netstandard2.0/Autofac.xml",
+        "lib/netstandard2.1/Autofac.dll",
+        "lib/netstandard2.1/Autofac.pdb",
+        "lib/netstandard2.1/Autofac.xml"
+      ]
+    },
     "MonoGame.Content.Builder.Task/3.8.1.303": {
       "sha512": "9Ilzzje62LhWElbPNEl7vh7XsRSbze+lvCJdZtTZUGu48FRgvYN6THURwIB9PN98EI33/Wnf6iuShNUtD7hL4Q==",
       "type": "package",
@@ -193,6 +323,71 @@
         "lib/netstandard2.0/MonoGame.Extended.dll",
         "monogame.extended.3.8.0.nupkg.sha512",
         "monogame.extended.nuspec"
+      ]
+    },
+    "MonoGame.Extended.Content.Pipeline/3.8.0": {
+      "sha512": "Kt21Ux4Hdkgm7FMiGhQ7C0+rMS0wMQM63TxWsNBa8DjEDwX1pKIUORxvQBgh89J4TiMSmmK+U6VfxV2kh5PPpg==",
+      "type": "package",
+      "path": "monogame.extended.content.pipeline/3.8.0",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "content/CppNet.dll",
+        "content/SharpDX.D3DCompiler.dll",
+        "content/SharpDX.D3DCompiler.xml",
+        "content/SharpDX.dll",
+        "content/SharpDX.xml",
+        "content/libmojoshader_64.dll",
+        "content/mgfxc.deps.json",
+        "content/mgfxc.dll",
+        "content/mgfxc.exe",
+        "content/mgfxc.pdb",
+        "content/mgfxc.runtimeconfig.dev.json",
+        "content/mgfxc.runtimeconfig.json",
+        "contentFiles/any/netcoreapp3.1/CppNet.dll",
+        "contentFiles/any/netcoreapp3.1/SharpDX.D3DCompiler.dll",
+        "contentFiles/any/netcoreapp3.1/SharpDX.D3DCompiler.xml",
+        "contentFiles/any/netcoreapp3.1/SharpDX.dll",
+        "contentFiles/any/netcoreapp3.1/SharpDX.xml",
+        "contentFiles/any/netcoreapp3.1/libmojoshader_64.dll",
+        "contentFiles/any/netcoreapp3.1/mgfxc.deps.json",
+        "contentFiles/any/netcoreapp3.1/mgfxc.dll",
+        "contentFiles/any/netcoreapp3.1/mgfxc.exe",
+        "contentFiles/any/netcoreapp3.1/mgfxc.pdb",
+        "contentFiles/any/netcoreapp3.1/mgfxc.runtimeconfig.dev.json",
+        "contentFiles/any/netcoreapp3.1/mgfxc.runtimeconfig.json",
+        "monogame.extended.content.pipeline.3.8.0.nupkg.sha512",
+        "monogame.extended.content.pipeline.nuspec",
+        "tools/MonoGame.Extended.Content.Pipeline.dll",
+        "tools/MonoGame.Extended.Graphics.dll",
+        "tools/MonoGame.Extended.Tiled.dll",
+        "tools/MonoGame.Extended.dll",
+        "tools/Newtonsoft.Json.dll"
+      ]
+    },
+    "MonoGame.Extended.Graphics/3.8.0": {
+      "sha512": "vSl1+4dFNKnOqHUB1SRQ7IdWXNagJJI+KKCQmaSyfon99/kumsChQ9iZXltEaUO3ArB8QGnblii/PXq/bsLUHQ==",
+      "type": "package",
+      "path": "monogame.extended.graphics/3.8.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/netstandard2.0/MonoGame.Extended.Graphics.dll",
+        "monogame.extended.graphics.3.8.0.nupkg.sha512",
+        "monogame.extended.graphics.nuspec"
+      ]
+    },
+    "MonoGame.Extended.Tiled/3.8.0": {
+      "sha512": "lXE+Ysvep5FCozHlj862kqIG6TWCmjNgjF7xWbJ4ZDkqG+Khi9VrG5G8Pdj80TMRpDhZOz3PICinVZElZU639g==",
+      "type": "package",
+      "path": "monogame.extended.tiled/3.8.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "lib/netstandard2.0/MonoGame.Extended.Tiled.dll",
+        "monogame.extended.tiled.3.8.0.nupkg.sha512",
+        "monogame.extended.tiled.nuspec"
       ]
     },
     "MonoGame.Framework.DesktopGL/3.8.1.303": {
@@ -250,9 +445,10 @@
     }
   },
   "projectFileDependencyGroups": {
-    "net6.0": [
+    "net7.0": [
       "MonoGame.Content.Builder.Task >= 3.8.1.303",
       "MonoGame.Extended >= 3.8.0",
+      "MonoGame.Extended.Content.Pipeline >= 3.8.0",
       "MonoGame.Framework.DesktopGL >= 3.8.1.303"
     ]
   },
@@ -272,14 +468,14 @@
         "C:\\Users\\noahk\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
-        "net6.0"
+        "net7.0"
       ],
       "sources": {
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
-        "net6.0": {
-          "targetAlias": "net6.0",
+        "net7.0": {
+          "targetAlias": "net7.0",
           "projectReferences": {}
         }
       },
@@ -290,14 +486,18 @@
       }
     },
     "frameworks": {
-      "net6.0": {
-        "targetAlias": "net6.0",
+      "net7.0": {
+        "targetAlias": "net7.0",
         "dependencies": {
           "MonoGame.Content.Builder.Task": {
             "target": "Package",
             "version": "[3.8.1.303, )"
           },
           "MonoGame.Extended": {
+            "target": "Package",
+            "version": "[3.8.0, )"
+          },
+          "MonoGame.Extended.Content.Pipeline": {
             "target": "Package",
             "version": "[3.8.0, )"
           },
@@ -317,24 +517,6 @@
         ],
         "assetTargetFallback": true,
         "warn": true,
-        "downloadDependencies": [
-          {
-            "name": "Microsoft.AspNetCore.App.Ref",
-            "version": "[6.0.19, 6.0.19]"
-          },
-          {
-            "name": "Microsoft.NETCore.App.Host.win-x64",
-            "version": "[6.0.19, 6.0.19]"
-          },
-          {
-            "name": "Microsoft.NETCore.App.Ref",
-            "version": "[6.0.19, 6.0.19]"
-          },
-          {
-            "name": "Microsoft.WindowsDesktop.App.Ref",
-            "version": "[6.0.19, 6.0.19]"
-          }
-        ],
         "frameworkReferences": {
           "Microsoft.NETCore.App": {
             "privateAssets": "all"

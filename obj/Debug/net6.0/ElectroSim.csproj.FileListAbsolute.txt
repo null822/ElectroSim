@@ -27,6 +27,15 @@ C:\Code\C#\ElectroSim\obj\Debug\net6.0\ElectroSim.genruntimeconfig.cache
 C:\Code\C#\ElectroSim\obj\Debug\net6.0\ref\ElectroSim.dll
 C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\chip.xnb
 C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\component.xnb
+C:\Code\C#\ElectroSim\bin\Debug\net6.0\Autofac.dll
+C:\Code\C#\ElectroSim\bin\Debug\net6.0\MonoGame.Extended.Graphics.dll
+C:\Code\C#\ElectroSim\bin\Debug\net6.0\MonoGame.Extended.Tiled.dll
+C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\fonts\consolas.xnb
+C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\fonts\consolas_0.xnb
+C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\fonts\consolas_1.xnb
 C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\textures\chip.xnb
 C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\textures\component.xnb
+C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\textures\gui\center.xnb
+C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\textures\gui\corner.xnb
+C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\textures\gui\edge.xnb
 C:\Code\C#\ElectroSim\bin\Debug\net6.0\assets\textures\missing.xnb

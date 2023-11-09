@@ -1,0 +1,10 @@
+Source File,Dest File,Processor Type,Content Type,Source File Size,Dest File Size,Build Seconds
+"C:/Code/C#/ElectroSim/assets/fonts/consolas_0.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/fonts/consolas_0.xnb","TextureProcessor","Texture2DContent",26682,262229,0.1075747
+"C:/Code/C#/ElectroSim/assets/fonts/consolas_1.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/fonts/consolas_1.xnb","TextureProcessor","Texture2DContent",5223,262229,0.0065571
+"C:/Code/C#/ElectroSim/assets/fonts/consolas.fnt","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/fonts/consolas.xnb","BitmapFontProcessor","BitmapFontProcessorResult",36759,11173,0.0193872
+"C:/Code/C#/ElectroSim/assets/textures/chip.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/textures/chip.xnb","TextureProcessor","Texture2DContent",660,4181,0.00261
+"C:/Code/C#/ElectroSim/assets/textures/component.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/textures/component.xnb","TextureProcessor","Texture2DContent",791,4181,0.0013876
+"C:/Code/C#/ElectroSim/assets/textures/gui/center.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/textures/gui/center.xnb","TextureProcessor","Texture2DContent",633,341,0.0009796
+"C:/Code/C#/ElectroSim/assets/textures/gui/corner.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/textures/gui/corner.xnb","TextureProcessor","Texture2DContent",661,341,0.0011693
+"C:/Code/C#/ElectroSim/assets/textures/gui/edge.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/textures/gui/edge.xnb","TextureProcessor","Texture2DContent",649,341,0.0008883
+"C:/Code/C#/ElectroSim/assets/textures/missing.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/textures/missing.xnb","TextureProcessor","Texture2DContent",675,4181,0.0011517

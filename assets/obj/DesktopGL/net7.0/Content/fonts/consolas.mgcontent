@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PipelineBuildEvent xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <SourceFile>C:/Code/C#/ElectroSim/assets/fonts/consolas.fnt</SourceFile>
+  <SourceTime>2023-11-06T18:32:35.0499747+11:00</SourceTime>
+  <DestFile>C:/Code/C#/ElectroSim/assets/bin/DesktopGL/Content/fonts/consolas.xnb</DestFile>
+  <DestTime>2023-11-08T16:34:03.7232508+11:00</DestTime>
+  <Importer>BitmapFontImporter</Importer>
+  <ImporterTime>2020-08-30T03:17:30+10:00</ImporterTime>
+  <Processor>BitmapFontProcessor</Processor>
+  <ProcessorTime>2020-08-30T03:17:30+10:00</ProcessorTime>
+  <Dependencies />
+  <BuildAsset />
+  <BuildOutput />
+</PipelineBuildEvent>

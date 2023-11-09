@@ -1,19 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using ElectroSim.Content;
+using ElectroSim.Gui;
+using ElectroSim.Gui.MenuElements;
 using ElectroSim.Maths;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-using MonoGame.Extended;
+using MonoGame.Extended.BitmapFonts;
 using Component = ElectroSim.Content.Component;
 
 namespace ElectroSim;
 
 public class MainWindow : Game
 {
-    // Debug/Dev
-    private readonly Component _activeBrush = ElectroSim.Components.Capacitor.GetVariant(1e-6);
+    // debug/testing
+    private Component _activeBrush = ElectroSim.Components.Capacitor.GetVariant(1e-6);
+    
     
     // rendering
     private readonly GraphicsDeviceManager _graphics;
@@ -21,7 +25,7 @@ public class MainWindow : Game
 
     // game logic
     private readonly Dictionary<Vector2,List<Component>> _components = new();
-    
+    private List<Menu> _menus = new();
     
     private static readonly List<Component> Brush = new();
     private static bool _isOverlapping;
@@ -51,6 +55,38 @@ public class MainWindow : Game
         Window.ClientSizeChanged += OnResize;
         
         Console.WriteLine(Prefixes.FormatNumber(3.1e-6, Units.Farad));
+        Console.WriteLine(new Value(10, Units.Volt) * new Value(10, Units.Ampere));
+        
+        
+        // debug / testing
+        _menus.Add(new Menu(
+            new ScalableValue2(new Vector2(0.25f, 0.25f)),
+            new ScalableValue2(new Vector2(0.5f, 0.5f)),
+            new MenuElement[]
+            {
+                new TextElement(
+                    new ScalableValue2(new Vector2(0.01f, 0.01f)),
+                    new ScalableValue2(new Vector2(0.25f, 0.25f)),
+                    """
+                    Line1
+                    Line2
+                    Very long line with spaces that will have to break.
+                    VeryLongLineWithoutSpacesThatWillHaveToBeChopped.
+                    """,
+                    new ScalableValue(0.0005f, AxisBind.Average, 0.5f, 0.75f)
+                ),
+                new ImageElement(
+                    new ScalableValue2(new Vector2(0.1f, 0.1f)),
+                    "component",
+                    new ScalableValue2(new Vector2(0.0025f), new Vector2(1f), null, AxisBind.Y),
+                    () =>
+                    {
+                        _activeBrush = ElectroSim.Components.Resistor.GetVariant(1);
+                    }
+                )
+            })
+        );
+        
         
     }
 
@@ -69,7 +105,16 @@ public class MainWindow : Game
         {
             "missing",
             "chip",
-            "component"
+            "component",
+            
+            "gui/center",
+            "gui/corner",
+            "gui/edge"
+        });
+        
+        RegisterFonts(new[]
+        {
+            "consolas"
         });
     }
 
@@ -87,7 +132,6 @@ public class MainWindow : Game
         
         
         // Controls
-        
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
 
@@ -112,6 +156,12 @@ public class MainWindow : Game
         
         
         _isOverlapping = Brush.Any(ComponentIntersect);
+
+
+        foreach (var menu in _menus)
+        {
+            menu.CheckHover(mousePos);
+        }
         
         // !lMouse
         if (mouseState.LeftButton == ButtonState.Released && !_prevMouseButtons[0])
@@ -285,7 +335,10 @@ public class MainWindow : Game
             brushComponent.Render(_spriteBatch, (_isOverlapping ? Color.Red : Color.White) * 0.25f);
         }
 
-        // TODO: Menus / Brush Selection
+        foreach (var menu in _menus)
+        {
+            menu.Render(_spriteBatch);
+        }
         
         _spriteBatch.End();
         
@@ -403,10 +456,10 @@ public class MainWindow : Game
     /// <param name="name">The name of the texture</param>
     private void RegisterTexture(string name)
     {
-        Textures.RegisterTexture(name, Content.Load<Texture2D>("textures/" + name));
+        
     }
     
-
+    
     /// <summary>
     /// Register multiple textures and store them in Textures.
     /// </summary>
@@ -415,7 +468,22 @@ public class MainWindow : Game
     {
         foreach (var name in names)
         {
-            RegisterTexture(name);
+            Textures.RegisterTexture(name, Content.Load<Texture2D>("textures/" + name));
+        }
+    }
+    
+    
+    /// <summary>
+    /// Register multiple fonts and store them in Fonts.
+    /// </summary>
+    /// <param name="names">An array of the names of the fonts to load</param>
+    private void RegisterFonts(IEnumerable<string> names)
+    {
+        foreach (var name in names)
+        {
+            var fontName = name[(name.LastIndexOf('/') + 1)..];
+        
+            Fonts.RegisterFont(fontName, Content.Load<BitmapFont>("fonts/" + name));
         }
     }
     
@@ -448,4 +516,6 @@ public class MainWindow : Game
     {
         return _dimensions;
     }
+
+
 }

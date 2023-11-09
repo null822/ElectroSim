@@ -1,4 +1,10 @@
 Source File,Dest File,Processor Type,Content Type,Source File Size,Dest File Size,Build Seconds
-"C:/Code/C#/ElectroSim/Content/textures/chip.png","C:/Code/C#/ElectroSim/Content/bin/DesktopGL/textures/chip.xnb","TextureProcessor","Texture2DContent",660,4181,0.0811901
-"C:/Code/C#/ElectroSim/Content/textures/component.png","C:/Code/C#/ElectroSim/Content/bin/DesktopGL/textures/component.xnb","TextureProcessor","Texture2DContent",791,4181,0.0012098
-"C:/Code/C#/ElectroSim/Content/textures/missing.png","C:/Code/C#/ElectroSim/Content/bin/DesktopGL/textures/missing.xnb","TextureProcessor","Texture2DContent",675,4181,0.001133
+"C:/Code/C#/ElectroSim/assets/fonts/consolas_0.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/fonts/consolas_0.xnb","TextureProcessor","Texture2DContent",26682,262229,0.0904262
+"C:/Code/C#/ElectroSim/assets/fonts/consolas_1.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/fonts/consolas_1.xnb","TextureProcessor","Texture2DContent",5223,262229,0.0064271
+"C:/Code/C#/ElectroSim/assets/fonts/consolas.fnt","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/fonts/consolas.xnb","BitmapFontProcessor","BitmapFontProcessorResult",36759,11173,0.0204313
+"C:/Code/C#/ElectroSim/assets/textures/chip.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/textures/chip.xnb","TextureProcessor","Texture2DContent",660,4181,0.0012296
+"C:/Code/C#/ElectroSim/assets/textures/component.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/textures/component.xnb","TextureProcessor","Texture2DContent",791,4181,0.0008798
+"C:/Code/C#/ElectroSim/assets/textures/gui/center.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/textures/gui/center.xnb","TextureProcessor","Texture2DContent",633,341,0.0009108
+"C:/Code/C#/ElectroSim/assets/textures/gui/corner.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/textures/gui/corner.xnb","TextureProcessor","Texture2DContent",661,341,0.0008784
+"C:/Code/C#/ElectroSim/assets/textures/gui/edge.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/textures/gui/edge.xnb","TextureProcessor","Texture2DContent",649,341,0.0009413
+"C:/Code/C#/ElectroSim/assets/textures/missing.png","C:/Code/C#/ElectroSim/assets/bin/DesktopGL/textures/missing.xnb","TextureProcessor","Texture2DContent",675,4181,0.0010761
