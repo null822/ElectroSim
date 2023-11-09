@@ -1,9 +1,8 @@
-﻿
+﻿# TODO
+everything.
+
+
 # Conversions
- - Joule = Farad x (Voltage ^ 2) / 2
-
-
-
-// here, have the
-**The Cauchy-Schwarz Inequality**
-$$\left( \sum_{k=1}^n a_k b_k \right)^2 \leq \left( \sum_{k=1}^n a_k^2 \right) \left( \sum_{k=1}^n b_k^2 \right)$$
+ - $$J = \frac{FV^2}{2}$$
+ - $$V_{c} = V_{0}e^{-t/RC}$$
+   - [Description](https://www.learningaboutelectronics.com/Articles/Capacitor-discharging.php)
