@@ -5,8 +5,8 @@ namespace ElectroSim.Maths;
 
 public class ScalableValue2
 {
-    private readonly ScalableValue _x;
-    private readonly ScalableValue _y;
+    private ScalableValue _x;
+    private ScalableValue _y;
 
 
     public ScalableValue2(Vector2 scalablePoint,
@@ -28,24 +28,42 @@ public class ScalableValue2
         _y = new ScalableValue(scalablePoint.Y, bindY, minValueY, maxValueY);
     }
     
-    public float GetY()
+    public static ScalableValue2 operator *(ScalableValue2 value1, ScalableValue2 value2)
+    {
+        value1._x *= value2._x;
+        value1._y *= value2._y;
+        return value1;
+    }
+    public static ScalableValue2 operator /(ScalableValue2 value1, ScalableValue2 value2)
+    {
+        value1._x /= value2._x;
+        value1._y /= value2._y;
+        return value1;
+    }
+    
+    public double GetY()
     {
         return _y;
     }
     
-    public float GetX()
+    public double GetX()
     {
         return _x;
     }
 
     public Vector2 Get()
     {
-        return new Vector2(_x, _y);
+        return new Vector2((float)_x, (float)_y);
     }
-
+    
     public static implicit operator Vector2(ScalableValue2 value)
     {
         return value.Get();
+    }
+    
+    public static explicit operator ScalableValue2(Vector2 value)
+    {
+        return new ScalableValue2(new Vector2(1, 1), value, value);
     }
     
 }

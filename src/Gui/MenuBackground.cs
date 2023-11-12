@@ -29,7 +29,7 @@ public class MenuBackground
         Vector2 pos = _pos;
         Vector2 size = _size;
         
-        const int tileSize = Constants.MenuBackgroundTileSize * Constants.MenuBackgroundZoom;
+        const int tileSize = GameConstants.MenuBackgroundTileSize * GameConstants.MenuBackgroundZoom;
 
         var maxX = (int)Math.Floor(size.X - tileSize);
         var maxY = (int)Math.Floor(size.Y - tileSize);
@@ -86,7 +86,7 @@ public class MenuBackground
                     Color.White,
                     rotationRad,
                     new Vector2(0),
-                    new Vector2(Constants.MenuBackgroundZoom),
+                    new Vector2(GameConstants.MenuBackgroundZoom),
                     SpriteEffects.None,
                     0f
                 );

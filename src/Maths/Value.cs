@@ -1,5 +1,5 @@
 ﻿using System;
-using ElectroSim.Content;
+using ElectroSim.Maths.Text;
 
 namespace ElectroSim.Maths;
 
@@ -11,28 +11,21 @@ public class Value
     
     public Value(double value, Unit unit)
     {
-        _unit = unit;
         _value = value;
+        _unit = unit;
     }
 
-    public override string ToString()
-    {
-        return Prefixes.FormatNumber(_value, _unit);
-    }
-
-    public Unit GetUnit()
-    {
-        return _unit;
-    }
-    
     public static Value operator *(Value value1, Value value2)
     {
-        return new Value(value1._value * value2._value, value1._unit * value2._unit);
+        var unitValue = value1._unit * value2._unit;
+        
+        return new Value(value1._value * value2._value * unitValue._value, unitValue._unit);
     }
     public static Value operator /(Value value1, Value value2)
     {
-        return new Value(value1._value / value2._value, value1._unit / value2._unit);
-
+        var unitValue = value1._unit / value2._unit;
+        
+        return new Value(value1._value / value2._value * unitValue._value, unitValue._unit);
     }
 
     public static Value operator +(Value value1, Value value2)
@@ -81,6 +74,31 @@ public class Value
         return value1._value <= value2._value;
     }
     
+    public static bool operator ==(Value value1, Value value2)
+    {
+        return Math.Abs(value1!._value - value2!._value) < 1e-9 && value1._unit == value2._unit;
+    }
+    public static bool operator !=(Value value1, Value value2)
+    {
+        return Math.Abs(value1!._value - value2!._value) > 1e-9 || value1._unit != value2._unit;
+    }
+
+    
+    public override string ToString()
+    {
+        return Prefixes.FormatNumber(_value, _unit);
+    }
+
+    public Unit GetUnit()
+    {
+        return _unit;
+    }
+    
+    public string GetUnitName()
+    {
+        return _unit.GetName();
+    }
+
     
     public void SetValue(double value)
     {
@@ -89,7 +107,7 @@ public class Value
 
     public static implicit operator Value(double value)
     {
-        return new Value(value, Units.Null);
+        return new Value(value, Units.Get("Null"));
     }
     
 }

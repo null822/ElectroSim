@@ -5,6 +5,7 @@ using ElectroSim.Content;
 using ElectroSim.Gui;
 using ElectroSim.Gui.MenuElements;
 using ElectroSim.Maths;
+using ElectroSim.Maths.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -16,7 +17,7 @@ namespace ElectroSim;
 public class MainWindow : Game
 {
     // debug/testing
-    private Component _activeBrush = ElectroSim.Components.Capacitor.GetVariant(1e-6);
+    private Component _activeBrush = Registry.Components.Capacitor.GetVariant(1e-6);
     
     
     // rendering
@@ -25,7 +26,7 @@ public class MainWindow : Game
 
     // game logic
     private readonly Dictionary<Vector2,List<Component>> _components = new();
-    private List<Menu> _menus = new();
+    private readonly List<Menu> _menus = new();
     
     private static readonly List<Component> Brush = new();
     private static bool _isOverlapping;
@@ -54,44 +55,20 @@ public class MainWindow : Game
         Window.AllowUserResizing = true;
         Window.ClientSizeChanged += OnResize;
         
-        Console.WriteLine(Prefixes.FormatNumber(3.1e-6, Units.Farad));
-        Console.WriteLine(new Value(10, Units.Volt) * new Value(10, Units.Ampere));
+        Console.WriteLine(Prefixes.FormatNumber(3.1e-6, Units.Get("Farad")));
+
+        var voltage = new Value(1e+28, Units.Get("Volt"));
+        var current = new Value(1e-30, Units.Get("Ampere"));
         
-        
-        // debug / testing
-        _menus.Add(new Menu(
-            new ScalableValue2(new Vector2(0.25f, 0.25f)),
-            new ScalableValue2(new Vector2(0.5f, 0.5f)),
-            new MenuElement[]
-            {
-                new TextElement(
-                    new ScalableValue2(new Vector2(0.01f, 0.01f)),
-                    new ScalableValue2(new Vector2(0.25f, 0.25f)),
-                    """
-                    Line1
-                    Line2
-                    Very long line with spaces that will have to break.
-                    VeryLongLineWithoutSpacesThatWillHaveToBeChopped.
-                    """,
-                    new ScalableValue(0.0005f, AxisBind.Average, 0.5f, 0.75f)
-                ),
-                new ImageElement(
-                    new ScalableValue2(new Vector2(0.1f, 0.1f)),
-                    "component",
-                    new ScalableValue2(new Vector2(0.0025f), new Vector2(1f), null, AxisBind.Y),
-                    () =>
-                    {
-                        _activeBrush = ElectroSim.Components.Resistor.GetVariant(1);
-                    }
-                )
-            })
-        );
+        Console.WriteLine(voltage + " * " + current + " = " + voltage * current);
+        Console.WriteLine(voltage.GetUnitName() + " * " + current.GetUnitName() + " = " + (voltage * current).GetUnitName());
         
         
     }
 
     protected override void Initialize()
     {
+        
         Brush.Add(_activeBrush.Copy());
         
         base.Initialize();
@@ -116,6 +93,39 @@ public class MainWindow : Game
         {
             "consolas"
         });
+        
+        
+        // debug / testing
+        _menus.Add(new Menu(
+            new ScalableValue2(new Vector2(0.25f, 0.25f)),
+            new ScalableValue2(new Vector2(0.5f, 0.5f)),
+            new MenuElement[]
+            {
+                new TextElement(
+                    new ScalableValue2(new Vector2(0.01f, 0.01f)),
+                    new ScalableValue2(new Vector2(0.25f, 0.25f)),
+                    """
+                    Line1
+                    Line2
+                    Very long line with spaces that will have to break.
+                    VeryLongLineWithoutSpacesThatWillHaveToBeChopped.
+                    """,
+                    new ScalableValue(0.0005f, AxisBind.Average, 0.5f, 0.75f)
+                ),
+                new ImageElement(
+                    new ScalableValue2(new Vector2(0.1f, 0.1f)),
+                    new ScalableValue2(new Vector2(0.05f), new Vector2(32f), null, AxisBind.Y),
+                    "component",
+                    () =>
+                    {
+                        _activeBrush = Registry.Components.Resistor.GetVariant(1);
+                        Console.WriteLine("Clicked!");
+                    }
+                )
+            })
+        );
+
+
     }
 
     /// <summary>
@@ -160,9 +170,19 @@ public class MainWindow : Game
 
         foreach (var menu in _menus)
         {
-            menu.CheckHover(mousePos);
+            menu.CheckHover(mouseScreenCords);
         }
-        
+
+        // lMouse first tick
+        if (mouseState.LeftButton == ButtonState.Pressed && !_prevMouseButtons[0])
+        {
+            if (_menus.Any(menu => menu.Click()))
+            {
+                UpdatePrevMouseButtons(mouseState);
+                return;
+            }
+        }
+
         // !lMouse
         if (mouseState.LeftButton == ButtonState.Released && !_prevMouseButtons[0])
         {
@@ -274,14 +294,8 @@ public class MainWindow : Game
             _scale = Math.Pow(Math.Min(Math.Max((mouseState.ScrollWheelValue - _scrollWheelOffset) / 1024f, 0e-4), 0e4), 4);
 
         }
-        
-        
-        _prevMouseButtons[0] = mouseState.LeftButton == ButtonState.Pressed;
-        _prevMouseButtons[1] = mouseState.RightButton == ButtonState.Pressed;
-        _prevMouseButtons[2] = mouseState.MiddleButton == ButtonState.Pressed;
-        _prevMouseButtons[3] = mouseState.XButton1 == ButtonState.Pressed;
-        _prevMouseButtons[4] = mouseState.XButton2 == ButtonState.Pressed;
 
+        UpdatePrevMouseButtons(mouseState);
         
         base.Update(gameTime);
     }
@@ -303,11 +317,11 @@ public class MainWindow : Game
         
         var center = ScreenToGameCoords(_dimensions / 2f);
         
-        var gridPos = center / Constants.CollisionGridSize;
+        var gridPos = center / GameConstants.CollisionGridSize;
         gridPos.Ceiling();
          
-        var gridWidth = (int)(_dimensions.X / _scale / Constants.CollisionGridSize);
-        var gridHeight = (int)(_dimensions.Y / _scale / Constants.CollisionGridSize);
+        var gridWidth = (int)(_dimensions.X / _scale / GameConstants.CollisionGridSize);
+        var gridHeight = (int)(_dimensions.Y / _scale / GameConstants.CollisionGridSize);
          
         var visibleComponents = new List<List<Component>>();
         
@@ -372,7 +386,7 @@ public class MainWindow : Game
     /// <param name="pos">The point within the center square of a 3x3 grid in which to return all the contained collision boxes</param>
     private IEnumerable<Rectangle> GetCollisionRectangles(Vector2 pos)
     {
-        var gridPos = pos / Constants.CollisionGridSize;
+        var gridPos = pos / GameConstants.CollisionGridSize;
         gridPos.Ceiling();
 
         var collisionComponents = new List<List<Component>>();
@@ -403,7 +417,7 @@ public class MainWindow : Game
 
     private void AddComponent(Component component)
     {
-        var gridPos = component.GetPos() / Constants.CollisionGridSize;
+        var gridPos = component.GetPos() / GameConstants.CollisionGridSize;
         gridPos.Ceiling();
         
         if (!_components.ContainsKey(gridPos))
@@ -411,6 +425,17 @@ public class MainWindow : Game
         
         _components[gridPos].Add(component.Copy());
     }
+    
+    
+    private void UpdatePrevMouseButtons(MouseState mouseState)
+    {
+        _prevMouseButtons[0] = mouseState.LeftButton == ButtonState.Pressed;
+        _prevMouseButtons[1] = mouseState.RightButton == ButtonState.Pressed;
+        _prevMouseButtons[2] = mouseState.MiddleButton == ButtonState.Pressed;
+        _prevMouseButtons[3] = mouseState.XButton1 == ButtonState.Pressed;
+        _prevMouseButtons[4] = mouseState.XButton2 == ButtonState.Pressed;
+    }
+
     
     /// <summary>
     /// Converts coords from the screen (like mouse pos) into game coords (like positions of components).

@@ -22,10 +22,10 @@ public class TextElement : MenuElement
 
     protected override void RenderContents(SpriteBatch spriteBatch, Vector2 pos, Vector2 size)
     {
-        var fontSize = _fontSize.Get();
+        var fontSize = (float)_fontSize.Get();
 
 
-        var maxWidth = Math.Max(Size.GetX() - Constants.MenuBackgroundZoom, 10);
+        var maxWidth = Math.Max(size.X - GameConstants.MenuBackgroundZoom, 10);
 
         var font = Fonts.GetFont("consolas");
 
@@ -34,7 +34,7 @@ public class TextElement : MenuElement
         spriteBatch.DrawString(
             font,
             wrappedText,
-            pos + new Vector2(Constants.MenuElementPadding),
+            pos + new Vector2(GameConstants.MenuElementPadding),
             Color.White,
             0,
             new Vector2(0),

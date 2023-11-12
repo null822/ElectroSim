@@ -2,7 +2,7 @@
 
 namespace ElectroSim;
 
-public static class Constants
+public static class GameConstants
 {
     public const int MinComponentSize = 8;
     public const int CollisionGridSize = 256;

@@ -3,7 +3,7 @@ using ElectroSim.Content;
 using ElectroSim.Content.ComponentTypes;
 using ElectroSim.Maths;
 
-namespace ElectroSim;
+namespace ElectroSim.Registry;
 
 /// <summary>
 /// Stores all components for access anywhere in the program.
@@ -15,10 +15,10 @@ public static class Components
         "Stores Energy",
         new Dictionary<PropertyType, Value> 
         { 
-            { PropertyType.Resistance, new Value(1e3, Units.Ohm) } 
+            { PropertyType.Resistance, new Value(1e3, Units.Get("Ohm")) } 
         },
         PropertyType.Capacitance, 
-        Units.Farad, 
+        Units.Get("Farad"), 
         new[]
         {
             1e-6
@@ -31,7 +31,7 @@ public static class Components
         {
         },
         PropertyType.Resistance, 
-        Units.Ohm, 
+        Units.Get("Ohm"), 
         new[]
         {
             1e0,
@@ -45,5 +45,4 @@ public static class Components
             1e9,
         });
     
-
 }

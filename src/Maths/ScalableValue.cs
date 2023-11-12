@@ -5,40 +5,42 @@ namespace ElectroSim.Maths;
 
 public class ScalableValue
 {
-    private readonly float _minValue;
-    private readonly float _maxValue;
-    private readonly float _scalablePoint;
+    private double _minValue;
+    private double _maxValue;
+    private double _scalableValue;
 
     private readonly bool _useMin;
     private readonly bool _useMax;
     private readonly AxisBind _axisBind;
 
+    private double _scale = 1;
+
 
     /// <summary>
     /// Creates a value that will scale depending on the size of the screen.
     /// </summary>
-    /// <param name="scalablePoint">The amount to scale the value by, depending on screen size {0-1, 0-1}</param>
+    /// <param name="scalableValue">The amount to scale the value by, depending on screen size {0-1, 0-1}</param>
     /// <param name="axisBind">The axis to bind to</param>
     /// <param name="minValue">The minimum value (optional)</param>
     /// <param name="maxValue">The maximum value (optional)</param>
-    public ScalableValue(float scalablePoint, AxisBind axisBind, float? minValue = null, float? maxValue = null)
+    public ScalableValue(float scalableValue, AxisBind axisBind, float? minValue = null, float? maxValue = null, bool useMin = true, bool useMax = true)
     {
-        _useMin = minValue != null;
-        _useMax = maxValue != null;
+        _useMin = minValue != null && useMin;
+        _useMax = maxValue != null && useMax;
 
         var minPixelsNonNull = minValue ?? 0;
         var maxPixelsNonNull = maxValue ?? 0;
         
         _minValue = minPixelsNonNull;
         _maxValue = maxPixelsNonNull;
-        _scalablePoint = scalablePoint;
+        _scalableValue = scalableValue;
         _axisBind = axisBind;
     }
 
     /// <summary>
     /// Gets the value, with the current screen size.
     /// </summary>
-    public float Get()
+    public double Get()
     {
         var scaleValue = _axisBind switch
         {
@@ -49,7 +51,7 @@ public class ScalableValue
         };
         
         
-        var point = _scalablePoint * scaleValue;
+        var point = _scalableValue * scaleValue;
 
         if (_useMax)
             point = Math.Min(point, _maxValue);
@@ -57,10 +59,25 @@ public class ScalableValue
         if (_useMin)
             point = Math.Max(point, _minValue);
         
-        return point;
+        return point * _scale;
+    }
+
+    
+    public static ScalableValue operator /(ScalableValue value, double scale)
+    {
+        value._scale /= scale;
+        
+        return value;
+    }
+    public static ScalableValue operator *(ScalableValue value, double scale)
+    {
+        value._scale *= scale;
+
+        return value;
     }
     
-    public static implicit operator float(ScalableValue value)
+
+    public static implicit operator double(ScalableValue value)
     {
         return value.Get();
     }

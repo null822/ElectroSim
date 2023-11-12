@@ -7,38 +7,39 @@ namespace ElectroSim.Gui;
 
 public class MenuElement
 {
-    protected readonly ScalableValue2 Pos;
-    protected readonly ScalableValue2 Size;
+    private readonly ScalableValue2 _pos;
+    private readonly ScalableValue2 _size;
     protected bool Hover;
     private readonly Action _click;
     
     protected MenuElement(ScalableValue2 pos, ScalableValue2 size, Action click = null)
     {
-        Pos = pos;
-        Size = size;
+        _pos = pos;
+        _size = size;
         _click = click;
         
         Hover = false;
     }
 
-    public void Render(SpriteBatch spriteBatch, Vector2 pos, Vector2 size)
+    public void Render(SpriteBatch spriteBatch, Vector2 pos)
     {
-        RenderContents(spriteBatch, pos + Pos, Size);
+        RenderContents(spriteBatch, pos + _pos, _size);
     }
     
-    public void Click()
+    public bool Click()
     {
-        if (_click == null || !Hover)
-            return;
+        if (!Hover || _click == null)
+            return false;
 
-        _click();
+        _click.Invoke();
+        return true;
     }
     
     
     public bool CheckHover(Vector2 mousePos)
     {
-        var pos = Pos.Get();
-        var size = Size.Get();
+        var pos = _pos.Get();
+        var size = _size.Get();
 
         var collision = new Rectangle((int)pos.X, (int)pos.Y, (int)size.X, (int)size.Y);
         
@@ -52,12 +53,12 @@ public class MenuElement
 
     public ScalableValue2 GetPos()
     {
-        return Pos;
+        return _pos;
     }
     
     public ScalableValue2 GetSize()
     {
-        return Size;
+        return _size;
     }
     
 }

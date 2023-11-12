@@ -1,4 +1,5 @@
-﻿using ElectroSim.Maths;
+﻿using System.Linq;
+using ElectroSim.Maths;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -25,7 +26,7 @@ public class Menu
         
         foreach (var element in _elements)
         {
-            element.Render(spriteBatch, _background.GetPos(), _background.GetSize());
+            element.Render(spriteBatch, _background.GetPos());
         }
     }
 
@@ -33,8 +34,13 @@ public class Menu
     {
         foreach (var element in _elements)
         {
-            element.CheckHover(mousePos);
+            element.CheckHover(mousePos - _background.GetPos());
         }
+    }
+    
+    public bool Click()
+    {
+        return _elements.Any(menu => menu.Click());
     }
 
 

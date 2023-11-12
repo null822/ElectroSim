@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace ElectroSim.Content;
@@ -24,14 +25,23 @@ public static class Textures
     }
     
     /// <summary>
-    /// Get a texture, by name. Returns a missing texture none was not found.
+    /// Get a texture, by name. Returns a missing texture if none was not found.
     /// </summary>
     /// <param name="name">The name of the texture to return</param>
     /// <returns></returns>
     public static Texture2D GetTexture(string name)
     {
+        if (!TextureDictionary.ContainsKey(name))
+            Util.ConsoleWarn($"The texture '{name}' does not exist");
+        
         var texture = TextureDictionary.TryGetValue(name, out var texture1) ? texture1 : TextureDictionary["missing"];
         return texture;
+    }
+
+    public static Vector2 GetSize(string name)
+    {
+        var texture = GetTexture(name);
+        return new Vector2(texture.Width, texture.Height);
     }
 
 }

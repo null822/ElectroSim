@@ -59,9 +59,9 @@ public class Component
     /// <returns></returns>
     private Vector2 AlignPos(Vector2 pos)
     {
-        pos /= Constants.MinComponentSize;
+        pos /= GameConstants.MinComponentSize;
         pos.Round();
-        pos *= Constants.MinComponentSize;
+        pos *= GameConstants.MinComponentSize;
 
         return pos;
     }
