@@ -109,5 +109,26 @@ public class Value
     {
         return new Value(value, Units.Get("Null"));
     }
+
+    public static Value Parse(string value)
+    {
+        var spaceIndex = value.IndexOf(' ');
+
+        var number = double.TryParse(value[..spaceIndex], out var n) ? n : 0;
+
+        var unitString = value[(spaceIndex + 1)..];
+        
+        var unit = Units.Get(unitString);
+
+        if (unit != Units.Get("Null")) return new Value(number, unit);
+
+        const string dynMsg = GameConstants.DynamicallyGeneratedUnitMessage;
+        
+        unit = new Unit(unitString, dynMsg, dynMsg);
+        Units.RegisterUnit(unit);
+
+        return new Value(number, unit);
+
+    }
     
 }

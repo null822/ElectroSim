@@ -48,4 +48,19 @@ public class ComponentDetails
     {
         return _properties.TryGetValue(propertyName, out var value) ? value : null;
     }
+
+    public override string ToString()
+    {
+        return _displayName;
+    }
+}
+
+
+public enum PropertyType
+{
+    MaxVoltage,
+    MaxCurrent,
+    Capacitance,
+    Resistance,
+    
 }

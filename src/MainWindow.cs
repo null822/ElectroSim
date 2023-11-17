@@ -5,6 +5,7 @@ using ElectroSim.Content;
 using ElectroSim.Gui;
 using ElectroSim.Gui.MenuElements;
 using ElectroSim.Maths;
+using ElectroSim.Maths.BlockMatrix;
 using ElectroSim.Maths.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -55,15 +56,25 @@ public class MainWindow : Game
         Window.AllowUserResizing = true;
         Window.ClientSizeChanged += OnResize;
         
+        
+        // "System Checks"
+        
         Console.WriteLine(Prefixes.FormatNumber(3.1e-6, Units.Get("Farad")));
+        
+        var voltage1 = Value.Parse("1e+28 V");
+        var current1 = Value.Parse("1e-30 A");
+        
+        var voltage2 = Value.Parse("1.1 V");
+        var current2 = Value.Parse("45 A");
+        
+        Console.WriteLine(voltage1 + " * " + current1 + " = " + voltage1 * current1);
+        Console.WriteLine(current2 + " / " + voltage2 + " = " + current2 / voltage2);
 
-        var voltage = new Value(1e+28, Units.Get("Volt"));
-        var current = new Value(1e-30, Units.Get("Ampere"));
+        var matrix = new BlockMatrix<int>(new Vector2(64, 64));
+
+        matrix.Add(new Vector2(32, 32), 1);
         
-        Console.WriteLine(voltage + " * " + current + " = " + voltage * current);
-        Console.WriteLine(voltage.GetUnitName() + " * " + current.GetUnitName() + " = " + (voltage * current).GetUnitName());
-        
-        
+        Console.WriteLine(matrix.Get(new Vector2(32, 32)));
     }
 
     protected override void Initialize()
@@ -93,36 +104,45 @@ public class MainWindow : Game
         {
             "consolas"
         });
-        
+
+        var brushTypes = new List<Component>
+        {
+            Registry.Components.Capacitor.GetVariant(1e-6),
+            Registry.Components.Resistor.GetVariant(1e3)
+        };
+
+        var brushTypeMenuElements = new MenuElement[brushTypes.Count];
+
+        var i = 0;
+        foreach (var brushType in brushTypes)
+        {
+            brushTypeMenuElements[i] = 
+                new ImageElement(
+                    new ScalableValue2(
+                        new ScalableValue(0, AxisBind.X, 8, 8),
+                        new ScalableValue(0.1f * (i+1), AxisBind.Y)
+                    ),
+                    new ScalableValue2(new Vector2(0), new Vector2(48), new Vector2(48)),
+                    brushType.GetTexture(),
+                    () =>
+                    {
+                        _activeBrush = brushType;
+                        Console.WriteLine(brushType.GetDetails());
+                    }
+                );
+
+            i++;
+        }
         
         // debug / testing
         _menus.Add(new Menu(
-            new ScalableValue2(new Vector2(0.25f, 0.25f)),
-            new ScalableValue2(new Vector2(0.5f, 0.5f)),
-            new MenuElement[]
-            {
-                new TextElement(
-                    new ScalableValue2(new Vector2(0.01f, 0.01f)),
-                    new ScalableValue2(new Vector2(0.25f, 0.25f)),
-                    """
-                    Line1
-                    Line2
-                    Very long line with spaces that will have to break.
-                    VeryLongLineWithoutSpacesThatWillHaveToBeChopped.
-                    """,
-                    new ScalableValue(0.0005f, AxisBind.Average, 0.5f, 0.75f)
+            new ScalableValue2(new Vector2(0, 0.15f)),
+            new ScalableValue2(
+                new ScalableValue(0, AxisBind.X, 56, 56),
+                new ScalableValue(0.7f, AxisBind.Y)
                 ),
-                new ImageElement(
-                    new ScalableValue2(new Vector2(0.1f, 0.1f)),
-                    new ScalableValue2(new Vector2(0.05f), new Vector2(32f), null, AxisBind.Y),
-                    "component",
-                    () =>
-                    {
-                        _activeBrush = Registry.Components.Resistor.GetVariant(1);
-                        Console.WriteLine("Clicked!");
-                    }
-                )
-            })
+            brushTypeMenuElements
+            )
         );
 
 

@@ -1,13 +1,12 @@
 ﻿using System;
-using Microsoft.Xna.Framework;
 
 namespace ElectroSim.Maths;
 
 public class ScalableValue
 {
-    private double _minValue;
-    private double _maxValue;
-    private double _scalableValue;
+    private readonly double _minValue;
+    private readonly double _maxValue;
+    private readonly double _scalableValue;
 
     private readonly bool _useMin;
     private readonly bool _useMax;
@@ -42,6 +41,9 @@ public class ScalableValue
     /// </summary>
     public double Get()
     {
+        if (Math.Abs(_minValue - _maxValue) < 0.001 && _useMin && _useMax)
+            return _minValue;
+        
         var scaleValue = _axisBind switch
         {
             AxisBind.X => MainWindow.GetScreenSize().X,

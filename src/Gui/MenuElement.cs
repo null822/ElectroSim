@@ -10,13 +10,13 @@ public class MenuElement
     private readonly ScalableValue2 _pos;
     private readonly ScalableValue2 _size;
     protected bool Hover;
-    private readonly Action _click;
+    protected readonly Action ClickAction;
     
-    protected MenuElement(ScalableValue2 pos, ScalableValue2 size, Action click = null)
+    protected MenuElement(ScalableValue2 pos, ScalableValue2 size, Action clickAction = null)
     {
         _pos = pos;
         _size = size;
-        _click = click;
+        ClickAction = clickAction;
         
         Hover = false;
     }
@@ -28,10 +28,10 @@ public class MenuElement
     
     public bool Click()
     {
-        if (!Hover || _click == null)
+        if (!Hover || ClickAction == null)
             return false;
 
-        _click.Invoke();
+        ClickAction.Invoke();
         return true;
     }
     

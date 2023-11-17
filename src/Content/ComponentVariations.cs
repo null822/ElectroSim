@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using ElectroSim.Content.ComponentTypes;
 using ElectroSim.Maths;
 
 namespace ElectroSim.Content;

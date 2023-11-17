@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 
 namespace ElectroSim.Maths;
 
@@ -26,6 +25,12 @@ public class ScalableValue2
         
         _x = new ScalableValue(scalablePoint.X, bindX, minValueX, maxValueX);
         _y = new ScalableValue(scalablePoint.Y, bindY, minValueY, maxValueY);
+    }
+    
+    public ScalableValue2(ScalableValue x, ScalableValue y)
+    {
+        _x = x;
+        _y = y;
     }
     
     public static ScalableValue2 operator *(ScalableValue2 value1, ScalableValue2 value2)

@@ -1,6 +1,5 @@
 ﻿#nullable enable
 using System;
-using System.Globalization;
 
 namespace ElectroSim.Maths.Text;
 

@@ -34,29 +34,27 @@ public class Unit
     }
     public static Value operator /(Unit value1, Unit value2)
     {
-        var values = new Unit2Ordered(value1, value2);
-
-        if (values == Unit2Ordered.FromNames("Ohm", "Volt"))
+        if (value1 == Units.Get("Ohm") && value2 == Units.Get("Volt"))
             return new Value(3600, Units.Get("Ampere"));
         
-        if (values == Unit2Ordered.FromNames("Ampere", "Volt"))
+        if (value1 == Units.Get("Ampere") && value2 == Units.Get("Volt"))
             return new Value(1, Units.Get("Ohm"));
         
-        if (values == Unit2Ordered.FromNames("Joule", "Second"))
+        if (value1 == Units.Get("Joule") && value2 == Units.Get("Second"))
             return new Value(1, Units.Get("JoulePerSecond"));
-
         
         return new Value(1, MaybeNullConcatenation(value1, value2, '/'));
     }
 
     public static bool operator ==(Unit value1, Unit value2)
     {
-        return value1!._symbol == value2!._symbol;
+        return value1._symbol == value2._symbol;
     }
     public static bool operator !=(Unit value1, Unit value2)
     {
-        return value1!._symbol != value2!._symbol;
+        return value1._symbol != value2._symbol;
     }
+
 
     private static Unit MaybeNullConcatenation(Unit value1, Unit value2, char sign)
     {
@@ -106,7 +104,7 @@ public class Unit
         var newUnit = new Unit(
             value1.GetSymbol() + sign + (square ? "" : value2.GetSymbol()),
             (square ? "Square" : "") + value1.GetName() + " " + name + (name == "" ? "" : " ")  + (square ? "" : value2.GetName()),
-            "Dynamically generated unit"
+            GameConstants.DynamicallyGeneratedUnitMessage
         );
         
         Units.RegisterUnit(newUnit);
@@ -178,18 +176,27 @@ internal class Unit2Orderless
 /// </summary>
 internal class Unit2Ordered
 {
-    public static Unit Unit1 { get; private set; }
-    public static Unit Unit2 { get; private set; }
+    private readonly Unit _unit1;
+    private readonly Unit _unit2;
 
     public Unit2Ordered(Unit unit1, Unit unit2)
     {
-        
-        Unit1 = unit1;
-        Unit2 = unit2;
+        _unit1 = unit1;
+        _unit2 = unit2;
     }
     
     public static Unit2Ordered FromNames(string unit1, string unit2)
     {
         return new Unit2Ordered(Units.Get(unit1), Units.Get(unit2));
+    }
+
+    public Unit Get1()
+    {
+        return _unit1;
+    }
+    
+    public Unit Get2()
+    {
+        return _unit2;
     }
 }

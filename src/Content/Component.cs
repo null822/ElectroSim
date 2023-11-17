@@ -57,7 +57,7 @@ public class Component
     /// </summary>
     /// <param name="pos"></param>
     /// <returns></returns>
-    private Vector2 AlignPos(Vector2 pos)
+    private static Vector2 AlignPos(Vector2 pos)
     {
         pos /= GameConstants.MinComponentSize;
         pos.Round();
@@ -108,6 +108,14 @@ public class Component
     public ComponentDetails GetDetails()
     {
         return Details;
+    }
+    
+    /// <summary>
+    /// Returns the texture name of the component.
+    /// </summary>
+    public string GetTexture()
+    {
+        return _texture;
     }
 
     /// <summary>

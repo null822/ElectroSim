@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace ElectroSim.Maths;
 
@@ -39,16 +38,13 @@ public static class Units
     }
     
     /// <summary>
-    /// Get a unit, by name. Returns a null unit none was not found.
+    /// Get a unit, by name. Returns a null unit if none was not found.
     /// </summary>
     /// <param name="name">The name of the unit to return</param>
     public static Unit Get(string name)
     {
-        var unit = UnitDictionary.TryGetValue(name, out var unit1) ? unit1 : UnitDictionary["null"];
+        var unit = UnitDictionary.TryGetValue(name, out var unit1) ? unit1 : UnitDictionary["Null"];
         return unit;
     }
-
-
-
     
 }

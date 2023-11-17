@@ -10,8 +10,8 @@ public class ImageElement : MenuElement
 {
     private readonly string _image;
 
-    public ImageElement(ScalableValue2 pos, ScalableValue2 size, string image, Action click = null)
-        : base(pos, size, click)
+    public ImageElement(ScalableValue2 pos, ScalableValue2 size, string image, Action clickAction = null)
+        : base(pos, size, clickAction)
     {
         _image = image;
     }
@@ -25,8 +25,8 @@ public class ImageElement : MenuElement
         spriteBatch.Draw(
             Textures.GetTexture(_image),
             pos,
-            null,
-            Hover ? Color.White : Color.Black,
+            null, 
+            ClickAction == null ? Color.White : Hover ? Color.White : Color.LightGray,
             0,
             new Vector2(0),
             scale,
