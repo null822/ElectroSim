@@ -5,7 +5,6 @@ using ElectroSim.Content;
 using ElectroSim.Gui;
 using ElectroSim.Gui.MenuElements;
 using ElectroSim.Maths;
-using ElectroSim.Maths.BlockMatrix;
 using ElectroSim.Maths.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -26,7 +25,8 @@ public class MainWindow : Game
     private static SpriteBatch _spriteBatch;
 
     // game logic
-    private readonly Dictionary<Vector2,List<Component>> _components = new();
+    // private readonly Dictionary<Vector2,List<Component>> _components = new();
+    private readonly BlockMatrix<Component> _components = new(null, new Vector2(1024, 1024));
     private readonly List<Menu> _menus = new();
     
     private static readonly List<Component> Brush = new();
@@ -46,7 +46,7 @@ public class MainWindow : Game
     private Vector2 _middleMouseCords = Vector2.Zero;
     private int _scrollWheelOffset = -1200;
     
-
+    
     public MainWindow()
     {
         _graphics = new GraphicsDeviceManager(this);
@@ -70,11 +70,36 @@ public class MainWindow : Game
         Console.WriteLine(voltage1 + " * " + current1 + " = " + voltage1 * current1);
         Console.WriteLine(current2 + " / " + voltage2 + " = " + current2 / voltage2);
 
-        var matrix = new BlockMatrix<int>(new Vector2(64, 64));
-
-        matrix.Add(new Vector2(32, 32), 1);
+        var matrix = new BlockMatrix<int>(0, new Vector2(64, 64));
         
-        Console.WriteLine(matrix.Get(new Vector2(32, 32)));
+        matrix[-23, -23] = 1;
+        matrix[-23,  23] = 2;
+
+        foreach (var element in matrix.ToListWithPos())
+            Console.WriteLine("pos=" + element.Key + " value=" + element.Value);
+        
+        matrix[-23, -23] = 3;
+        matrix[-23,  23] = 4;
+        
+        foreach (var element in matrix.ToListWithPos())
+            Console.WriteLine("pos=" + element.Key + " value=" + element.Value);
+        
+        Console.WriteLine(matrix[-23, -23]);
+        Console.WriteLine(matrix[-23, 23]);
+        Console.WriteLine(matrix[0, 0]);
+
+        
+        // matrix[-16, 17] = 31;
+        //
+        // list = matrix.ToList();
+        // Console.WriteLine("len: " + list.Count);
+        // foreach (var element in list)
+        // {
+        //         Console.WriteLine(element);
+        // }
+        //
+        // Console.WriteLine(matrix.Get(new Vector2(-16, 16)));
+        // Console.WriteLine(matrix.Get(new Vector2(-16, 17)));
     }
 
     protected override void Initialize()
@@ -237,7 +262,8 @@ public class MainWindow : Game
             // & !overlap & !lShift
             if (!_isOverlapping && !keyboardState.IsKeyDown(Keys.LeftShift))
             {
-                AddComponent(Brush[0]);
+                _components.Add(Brush[0].GetPos(), Brush[0]);
+                //AddComponent(Brush[0]);
             }
         }
         
@@ -249,7 +275,9 @@ public class MainWindow : Game
             {
                 foreach (var brushComponent in Brush)
                 {
-                    AddComponent(brushComponent);
+
+                    _components.Add(brushComponent.GetPos(), brushComponent);
+                    //AddComponent(brushComponent);
                 }
             }
             
@@ -332,36 +360,41 @@ public class MainWindow : Game
         GraphicsDevice.Clear(Colors.CircuitBackground);
         
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        
+        // #region Culling
+        //
+        // var center = ScreenToGameCoords(_dimensions / 2f);
+        //
+        // var gridPos = center / GameConstants.CollisionGridSize;
+        // gridPos.Ceiling();
+        //  
+        // var gridWidth = (int)(_dimensions.X / _scale / GameConstants.CollisionGridSize);
+        // var gridHeight = (int)(_dimensions.Y / _scale / GameConstants.CollisionGridSize);
+        //  
+        // var visibleComponents = new List<List<Component>>();
+        //
+        // for (var x = -(int)Math.Floor(gridWidth/2f)-2; x <= (int)Math.Ceiling(gridWidth/2f)+2; x++)
+        // {
+        //     for (var y = -(int)Math.Floor(gridHeight/2f)-2; y <= (int)Math.Ceiling(gridHeight/2f)+2; y++)
+        //     {
+        //         
+        //         
+        //         if (!_components.TryGetValue(new Vector2(x + gridPos.X, y + gridPos.Y), out var collisionSquare))
+        //             continue;
+        //         
+        //         visibleComponents.Add(collisionSquare);
+        //     }
+        // }
+        //
+        // #endregion
 
-        #region Culling
+        var visibleComponents = _components.ToList();
         
-        var center = ScreenToGameCoords(_dimensions / 2f);
-        
-        var gridPos = center / GameConstants.CollisionGridSize;
-        gridPos.Ceiling();
-         
-        var gridWidth = (int)(_dimensions.X / _scale / GameConstants.CollisionGridSize);
-        var gridHeight = (int)(_dimensions.Y / _scale / GameConstants.CollisionGridSize);
-         
-        var visibleComponents = new List<List<Component>>();
-        
-        for (var x = -(int)Math.Floor(gridWidth/2f)-2; x <= (int)Math.Ceiling(gridWidth/2f)+2; x++)
+        foreach (var component in visibleComponents)
         {
-            for (var y = -(int)Math.Floor(gridHeight/2f)-2; y <= (int)Math.Ceiling(gridHeight/2f)+2; y++)
-            {
-                if (!_components.TryGetValue(new Vector2(x + gridPos.X, y + gridPos.Y), out var collisionSquare))
-                    continue;
-                
-                visibleComponents.Add(collisionSquare);
-            }
+            component?.Render(_spriteBatch);
         }
         
-        #endregion
-        
-        foreach (var component in visibleComponents.SelectMany(a => a))
-        {
-            component.Render(_spriteBatch);
-        }
         visibleComponents.Clear();
         
         foreach (var brushComponent in Brush)
@@ -388,63 +421,50 @@ public class MainWindow : Game
     {
         var pos = component.GetPos();
         var size = component.GetSize();
-        
-        var componentRectangle = new Rectangle(
-            (int)(pos.X - size.X / 2f),
-            (int)(pos.Y - size.X / 2f),
-            (int)size.X,
-            (int)size.Y);
 
-        var collisionRectangles = GetCollisionRectangles(component.GetPos());
-        return collisionRectangles.Any(rect => rect.Intersects(componentRectangle));
+        var componentRectangle = GetCollisionRectangle(component);
+
+        return _components.ToArray().Cast<Component>()
+            .Aggregate(
+                false,
+                (current, c) =>
+                    current | (c != null && GetCollisionRectangle(c).Intersects(componentRectangle))
+            );
+
+        //return _components.ToArray().Any<Component>(c => GetCollisionRectangle(c).Intersects(componentRectangle));
+
+        // var collisionRectangles = GetCollisionRectangle(component.GetPos());
+        // return collisionRectangles.Any(rect => rect.Intersects(componentRectangle));
     }
-    
-    
+
+
     /// <summary>
-    /// Returns the rectangles of all components around the specified point.
+    /// Returns a rectangle representing the collision of a component
     /// </summary>
-    /// <param name="pos">The point within the center square of a 3x3 grid in which to return all the contained collision boxes</param>
-    private IEnumerable<Rectangle> GetCollisionRectangles(Vector2 pos)
+    /// <param name="component">the component to get the collision of</param>
+    private static Rectangle GetCollisionRectangle(Component component)
     {
-        var gridPos = pos / GameConstants.CollisionGridSize;
-        gridPos.Ceiling();
-
-        var collisionComponents = new List<List<Component>>();
-
-        for (var x = -1; x <= 1; x++)
-        {
-            for (var y = -1; y <= 1; y++)
-            {
-                collisionComponents.Add(
-                    _components.TryGetValue(
-                        new Vector2(x + gridPos.X, y + gridPos.Y),
-                        out var collisionSquare)
-                        ? collisionSquare : new List<Component>()
-                    );
-            }
-        }
-
-        return from component in collisionComponents.SelectMany(collisionBoxes => collisionBoxes)
-            let componentPos = component.GetPos()
-            let componentSize = component.GetSize()
-            select new Rectangle(
-                (int)(componentPos.X - componentSize.X / 2f),
-                (int)(componentPos.Y - componentSize.Y / 2f),
-                (int)componentSize.X,
-                (int)componentSize.Y
-                );
-    }
-
-    private void AddComponent(Component component)
-    {
-        var gridPos = component.GetPos() / GameConstants.CollisionGridSize;
-        gridPos.Ceiling();
+        var componentPos = component.GetPos();
+        var componentSize = component.GetSize();
         
-        if (!_components.ContainsKey(gridPos))
-            _components.Add(gridPos, new List<Component>());
-        
-        _components[gridPos].Add(component.Copy());
+        return new Rectangle(
+            (int)(componentPos.X - componentSize.X / 2f),
+            (int)(componentPos.Y - componentSize.Y / 2f),
+            (int)componentSize.X,
+            (int)componentSize.Y
+        );
     }
+    
+    // private void AddComponent(Component component)
+    // {
+    //     var gridPos = component.GetPos() / GameConstants.CollisionGridSize;
+    //     gridPos.Ceiling();
+    //     
+    //     if (!_components.ContainsKey(gridPos))
+    //         _components.Add(gridPos, new List<Component>());
+    //     
+    //     _components[gridPos].Add(component.Copy());
+    // }
     
     
     private void UpdatePrevMouseButtons(MouseState mouseState)
