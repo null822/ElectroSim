@@ -56,7 +56,6 @@ public class MainWindow : Game
         Window.AllowUserResizing = true;
         Window.ClientSizeChanged += OnResize;
         
-        
         // "System Checks"
         
         Console.WriteLine(Prefixes.FormatNumber(3.1e-6, Units.Get("Farad")));
@@ -70,7 +69,7 @@ public class MainWindow : Game
         Console.WriteLine(voltage1 + " * " + current1 + " = " + voltage1 * current1);
         Console.WriteLine(current2 + " / " + voltage2 + " = " + current2 / voltage2);
 
-        var matrix = new BlockMatrix<int>(0, new Vector2(64, 64));
+        var matrix = new BlockMatrix<int>(0, new Vector2(65, 65));
         
         matrix[-23, -23] = 1;
         matrix[-23,  23] = 2;

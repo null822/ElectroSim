@@ -8,7 +8,7 @@ namespace ElectroSim.Maths;
 internal class BlockMatrixBlock<T>
 {
     protected readonly Vector2 Pos;
-    protected readonly Vector2 Size;
+    protected readonly Vector2 BlockSize;
 
 
     protected bool IsEmpty;
@@ -16,11 +16,11 @@ internal class BlockMatrixBlock<T>
     protected readonly T? DefaultValue;
 
 
-    protected BlockMatrixBlock(T? defaultValue, Vector2 pos, Vector2 size)
+    protected BlockMatrixBlock(T? defaultValue, Vector2 pos, Vector2 blockSize)
     {
         DefaultValue = defaultValue;
         Pos = pos;
-        Size = size;
+        BlockSize = blockSize;
     }
 
     public virtual bool Add(Vector2 targetPos, T? value, Vector2 absolutePos = default)
@@ -28,7 +28,7 @@ internal class BlockMatrixBlock<T>
         return false;
     }
     
-    public virtual bool Remove(Vector2 pos)
+    public virtual bool Remove(Vector2 targetPos)
     {
         return false;
     }
@@ -52,32 +52,34 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     /// <summary>
     /// 2D Array containing all of the sub-blocks
     /// </summary>
-    private readonly BlockMatrixBlock<T>?[,] _blocks;
+    private readonly BlockMatrixBlock<T>?[,] _subBlocks;
 
     /// <summary>
     /// size of one of the contained blocks
     /// </summary>
-    private readonly Vector2 _blockSize;
+    private readonly Vector2 _subBlockSize;
 
-    private readonly Vector2 _blockCount;
+    private readonly Vector2 _subBlockCount;
 
     
     
-    public BlockMatrix(T? defaultValue, Vector2 size, Vector2 pos = new()) : base(defaultValue, pos, size)
+    public BlockMatrix(T? defaultValue, Vector2 blockSize, Vector2 pos = new()) : base(defaultValue, pos, blockSize)
     {
         // calculate largest W/H factors
-        var wLargestFactor = BlockMatrixUtil.LargestFactor((int)size.X);
-        var hLargestFactor = BlockMatrixUtil.LargestFactor((int)size.Y);
+        var wLargestFactor = BlockMatrixUtil.LargestFactor((int)blockSize.X);
+        var hLargestFactor = BlockMatrixUtil.LargestFactor((int)blockSize.Y);
         
         
-        // instantiate _blockSize to be as large as possible, but smaller than the matrix, while keeping the matrix size divisible by it
-        _blockSize = new Vector2(wLargestFactor, hLargestFactor);
+        // instantiate _subBlockSize to be as large as possible, but smaller than the matrix, while keeping the matrix size divisible by it
+        _subBlockSize = new Vector2(wLargestFactor, hLargestFactor);
         
         
-        // instantiate _blocks to be of size: smallest non-1 (unless matrix size is prime) factor of passed size.
+        // instantiate _subBlocks to be of size: smallest non-1 (unless matrix size is prime) factor of passed size.
         // also store this value in a field for later use
-        _blockCount = new Vector2((int)(size.X / wLargestFactor), (int)(size.X / hLargestFactor));
-        _blocks = new BlockMatrixBlock<T>[(int)_blockCount.X, (int)_blockCount.X];
+        _subBlockCount = new Vector2((int)(blockSize.X / wLargestFactor), (int)(blockSize.X / hLargestFactor));
+        _subBlocks = new BlockMatrixBlock<T>[(int)_subBlockCount.X, (int)_subBlockCount.X];
+        
+        Console.WriteLine(_subBlockCount);
 
     }
 
@@ -89,19 +91,19 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     /// <returns>the value</returns>
     internal override T? Get(Vector2 targetPos = default)
     {
-        // get the pos of the block the target is in
-        var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, Size);
+        // get the targetPos of the block the target is in
+        var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, BlockSize, _subBlockCount);
 
         // throw exception if the position is out of bounds
-        if (blockPos.X < 0 || blockPos.X > _blockCount.X || blockPos.Y < 0 || blockPos.Y > _blockCount.Y)
-            throw new Exception("Index out of Bounds");
+        if (blockPos.X < 0 || blockPos.X > _subBlockCount.X || blockPos.Y < 0 || blockPos.Y > _subBlockCount.Y)
+            throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
         
         // get the next block
-        var nextBlock = _blocks[(int)blockPos.X, (int)blockPos.Y];
+        var nextBlock = _subBlocks[(int)blockPos.X, (int)blockPos.Y];
         
         // calculate the new targetPos
         var blockSign = new Vector2(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
-        var nextBlockBlockSize = _blockSize / _blockCount;
+        var nextBlockBlockSize = _subBlockSize / _subBlockCount;
         var newTargetPos = targetPos - (nextBlockBlockSize * blockSign);
 
         return nextBlock == null ? DefaultValue : nextBlock.Get(newTargetPos);
@@ -121,30 +123,30 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         if (value.Equals(DefaultValue))
             return Remove(targetPos);
         
-        // get the pos of the block the target is in
-        var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, Size);
+        // get the targetPos of the block the target is in
+        var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, BlockSize, _subBlockCount);
         
         // throw exception if the position is out of bounds
-        if (blockPos.X < 0 || blockPos.X > _blockCount.X || blockPos.Y < 0 || blockPos.Y > _blockCount.Y)
-            throw new Exception("Index out of Bounds");
+        if (blockPos.X < 0 || blockPos.X > _subBlockCount.X || blockPos.Y < 0 || blockPos.Y > _subBlockCount.Y)
+            throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
 
         // get the next block
-        var nextBlock = _blocks[(int)blockPos.X, (int)blockPos.Y];
+        var nextBlock = _subBlocks[(int)blockPos.X, (int)blockPos.Y];
         
         // if part is null, create it
         if (nextBlock == null)
         {
             nextBlock = 
-                _blockSize == Vector2.One ?
+                _subBlockSize == Vector2.One ?
                     new BlockMatrixValue<T>(DefaultValue, absolutePos, targetPos, Vector2.One, value) :
-                    new BlockMatrix<T>(DefaultValue, _blockSize, targetPos);
+                    new BlockMatrix<T>(DefaultValue, _subBlockSize, targetPos);
 
-            _blocks[(int)blockPos.X, (int)blockPos.Y] = nextBlock;
+            _subBlocks[(int)blockPos.X, (int)blockPos.Y] = nextBlock;
         }
 
         // calculate the new targetPos
         var blockSign = new Vector2(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
-        var nextBlockBlockSize = _blockSize / _blockCount;
+        var nextBlockBlockSize = _subBlockSize / _subBlockCount;
         var newTargetPos = targetPos - (nextBlockBlockSize * blockSign);
         
         // recursively add the value
@@ -160,28 +162,34 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     /// <summary>
     /// Removes a value in the matrix.
     /// </summary>
-    /// <param name="pos">the position to remove the value at</param>
+    /// <param name="targetPos">the position to remove the value at</param>
     /// <returns>a bool describing if the matrix was changed</returns>
-    public override bool Remove(Vector2 pos)
+    public override bool Remove(Vector2 targetPos)
     {
         var success = false;
         
-        var contentPos = BlockMatrixUtil.GetBlockIndexFromPos(pos - Pos, _blockSize);
-
-        var part = _blocks[(int)contentPos.X, (int)contentPos.Y];
-
-        // if part does not exist to begin with, nothing will change
-        if (part == null) return false;
+        // get the targetPos of the block the target is in
+        var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, BlockSize, _subBlockCount);
         
+        // throw exception if the position is out of bounds
+        if (blockPos.X < 0 || blockPos.X > _subBlockCount.X || blockPos.Y < 0 || blockPos.Y > _subBlockCount.Y)
+            throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
+
+        // get the next block
+        var nextBlock = _subBlocks[(int)blockPos.X, (int)blockPos.Y];
+        
+        
+        // if the block does not exist to begin with, nothing will change
+        if (nextBlock == null) return false;
         
         // if part refers to a BlockMatrixContainer, pass the call downwards.
-        if (part.GetType() == typeof(BlockMatrix<T>))
+        if (nextBlock.GetType() == typeof(BlockMatrix<T>))
         {
-            success = part.Remove(pos);
+            success = nextBlock.Remove(targetPos);
         }
         
         // otherwise, if targetPos refers to a BlockMatrixValue, remove it and flatten the matrix.
-        else if (part.GetType() == typeof(BlockMatrixValue<T>))
+        else if (nextBlock.GetType() == typeof(BlockMatrixValue<T>))
         {
             //TODO: compression/removal
             
@@ -200,13 +208,13 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     /// </summary>
     public T?[,] ToArray()
     {
-        var array = new T?[(int)Size.X, (int)Size.Y];
+        var array = new T?[(int)BlockSize.X, (int)BlockSize.Y];
 
-        var half = Size / 2f;
+        var half = BlockSize / 2f;
         
-        for (var x = 0; x < (int)Size.X; x++)
+        for (var x = 0; x < (int)BlockSize.X; x++)
         {
-            for (var y = 0; y < (int)Size.Y; y++)
+            for (var y = 0; y < (int)BlockSize.Y; y++)
             {
                 array[x, y] = Get(new Vector2(x - half.X, y - half.Y));
             }
@@ -223,7 +231,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     {
         var list = new List<T?>();
 
-        foreach (var block in _blocks)
+        foreach (var block in _subBlocks)
         {
             switch (block)
             {
@@ -249,7 +257,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     {
         var list = new Dictionary<Vector2, T?>();
 
-        foreach (var block in _blocks)
+        foreach (var block in _subBlocks)
         {
             switch (block)
             {
@@ -275,7 +283,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     {
         var isEmpty = true;
         
-        foreach (var part in _blocks)
+        foreach (var part in _subBlocks)
         {
             // ignore null (therefore empty) parts
             if (part == null) continue;
@@ -303,7 +311,7 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T>
     private T _value;
     private readonly Vector2 _absolutePos;
     
-    public BlockMatrixValue(T? defaultValue, Vector2 absolutePos, Vector2 pos, Vector2 size, T value) : base(defaultValue, pos, size)
+    public BlockMatrixValue(T? defaultValue, Vector2 absolutePos, Vector2 pos, Vector2 blockSize, T value) : base(defaultValue, pos, blockSize)
     {
         _absolutePos = absolutePos;
         _value = value;
@@ -331,14 +339,23 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T>
 
 internal static class BlockMatrixUtil
 {
-    internal static Vector2 GetBlockIndexFromPos(Vector2 localPos, Vector2 blockSize)
+    internal static Vector2 GetBlockIndexFromPos(Vector2 localPos, Vector2 blockSize, Vector2 subBlockCount)
     {
-        var contentPos = new Vector2(
-            (int)Math.Floor(localPos.X / blockSize.X) + 1,
-            (int)Math.Floor(localPos.Y / blockSize.Y) + 1
+        
+        var e = new Vector2(
+            (int)Math.Floor(localPos.X / blockSize.X) + subBlockCount.X/2f,
+            (int)Math.Floor(localPos.Y / blockSize.Y) + subBlockCount.Y/2f
         );
         
-        return contentPos;
+        // Console.WriteLine(e);
+
+        return e;
+
+    }
+
+    private static int SignedFloor(double d)
+    {
+        return d < 0 ? (int)Math.Ceiling(d) : (int)Math.Floor(d);
     }
     
     
