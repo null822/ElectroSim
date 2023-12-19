@@ -1,6 +1,8 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
 using Microsoft.Xna.Framework;
 
 namespace ElectroSim.Maths;
@@ -37,13 +39,16 @@ internal class BlockMatrixBlock<T>
     {
         return default;
     }
-    
-    public virtual T? this[int x, int y]
-    {
-        get => Get(new Vector2(x, y));
-        set => Add(new Vector2(x, y), value);
-    }
 
+    public virtual bool All(Func<T, Vector2, bool> lambda)
+    {
+        return false;
+    }
+    
+    public virtual bool Any(Func<T, Vector2, bool> lambda)
+    {
+        return false;
+    }
 }
 
 
@@ -79,8 +84,6 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         _subBlockCount = new Vector2((int)(blockSize.X / wLargestFactor), (int)(blockSize.X / hLargestFactor));
         _subBlocks = new BlockMatrixBlock<T>[(int)_subBlockCount.X, (int)_subBlockCount.X];
         
-        Console.WriteLine(_subBlockCount);
-
     }
 
 
@@ -109,10 +112,16 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         return nextBlock == null ? DefaultValue : nextBlock.Get(newTargetPos);
     }
 
-    public override T? this[int x, int y]
+    public T? this[int x, int y]
     {
         get => Get(new Vector2(x, y));
         set => Add(new Vector2(x, y), value, new Vector2(x, y));
+    }
+    
+    public T? this[Vector2 pos]
+    {
+        get => Get(pos);
+        set => Add(pos, value, pos);
     }
     
     public override bool Add(Vector2 targetPos, T? value, Vector2 absolutePos = default)
@@ -123,15 +132,9 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         if (value.Equals(DefaultValue))
             return Remove(targetPos);
         
-        // get the targetPos of the block the target is in
-        var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, BlockSize, _subBlockCount);
+        var nextBlockPos = GetNextBlockPos(targetPos, out var newTargetPos);
         
-        // throw exception if the position is out of bounds
-        if (blockPos.X < 0 || blockPos.X > _subBlockCount.X || blockPos.Y < 0 || blockPos.Y > _subBlockCount.Y)
-            throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
-
-        // get the next block
-        var nextBlock = _subBlocks[(int)blockPos.X, (int)blockPos.Y];
+        var nextBlock = _subBlocks[(int)nextBlockPos.X, (int)nextBlockPos.Y];
         
         // if part is null, create it
         if (nextBlock == null)
@@ -141,13 +144,13 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
                     new BlockMatrixValue<T>(DefaultValue, absolutePos, targetPos, Vector2.One, value) :
                     new BlockMatrix<T>(DefaultValue, _subBlockSize, targetPos);
 
-            _subBlocks[(int)blockPos.X, (int)blockPos.Y] = nextBlock;
+            _subBlocks[(int)nextBlockPos.X, (int)nextBlockPos.Y] = nextBlock;
         }
 
-        // calculate the new targetPos
-        var blockSign = new Vector2(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
-        var nextBlockBlockSize = _subBlockSize / _subBlockCount;
-        var newTargetPos = targetPos - (nextBlockBlockSize * blockSign);
+        // // calculate the new targetPos
+        // var blockSign = new Vector2(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
+        // var nextBlockBlockSize = _subBlockSize / _subBlockCount;
+        // var newTargetPos = targetPos - (nextBlockBlockSize * blockSign);
         
         // recursively add the value
         var success = nextBlock.Add(newTargetPos, value, absolutePos);
@@ -175,20 +178,21 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         if (blockPos.X < 0 || blockPos.X > _subBlockCount.X || blockPos.Y < 0 || blockPos.Y > _subBlockCount.Y)
             throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
 
+        GetNextBlockPos(targetPos, out var newTargetPos);
+        
         // get the next block
         var nextBlock = _subBlocks[(int)blockPos.X, (int)blockPos.Y];
-        
         
         // if the block does not exist to begin with, nothing will change
         if (nextBlock == null) return false;
         
-        // if part refers to a BlockMatrixContainer, pass the call downwards.
+        // if block is a BlockMatrix, pass the call downwards.
         if (nextBlock.GetType() == typeof(BlockMatrix<T>))
         {
-            success = nextBlock.Remove(targetPos);
+            success = nextBlock.Remove(newTargetPos);
         }
         
-        // otherwise, if targetPos refers to a BlockMatrixValue, remove it and flatten the matrix.
+        // otherwise, if the block is a BlockMatrixValue, remove it and flatten the matrix.
         else if (nextBlock.GetType() == typeof(BlockMatrixValue<T>))
         {
             //TODO: compression/removal
@@ -202,6 +206,22 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         
         return success;
     }
+
+    public override bool All(Func<T, Vector2, bool> lambda)
+    {
+        return _subBlocks.OfType<BlockMatrixBlock<T>>().Aggregate(
+            true,
+            (current, subBlock) => current & subBlock.All(lambda));
+    }
+    
+    public override bool Any(Func<T, Vector2, bool> lambda)
+    {
+        return _subBlocks.OfType<BlockMatrixBlock<T>>().Aggregate(
+            false,
+            (current, subBlock) => current | subBlock.All(lambda));
+    }
+    
+    
 
     /// <summary>
     /// Converts the BlockMatrix into an array, passing the default value if none is present
@@ -285,22 +305,40 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         
         foreach (var part in _subBlocks)
         {
-            // ignore null (therefore empty) parts
+            // ignore null or empty parts
             if (part == null) continue;
             
-            // if it is a BlockMatrixContainer, pass the call downwards
+            // if it is a BlockMatrix pass the call downwards
             if (part.GetType() == typeof(BlockMatrix<T>))
             {
-                isEmpty &= ((BlockMatrix<T>)part).IsEmpty;
+                isEmpty &= ((BlockMatrix<T>)part).CheckEmpty();
             }
+            
             // otherwise, if it is a BlockMatrixValue, return false as the matrix is not empty
             else if (part.GetType() == typeof(BlockMatrixValue<T>))
             {
-                return false;
+                return !((BlockMatrixValue<T>)part).Get()!.Equals(DefaultValue);
             }
         }
 
         return isEmpty;
+    }
+
+    private Vector2 GetNextBlockPos(Vector2 targetPos, out Vector2 newTargetPos)
+    {
+        // get the targetPos of the block the target is in
+        var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, BlockSize, _subBlockCount);
+
+        // throw exception if the position is out of bounds
+        if (blockPos.X < 0 || blockPos.X > _subBlockCount.X || blockPos.Y < 0 || blockPos.Y > _subBlockCount.Y)
+            throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
+        
+        // calculate the new targetPos
+        var blockSign = new Vector2(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
+        var nextBlockBlockSize = _subBlockSize / _subBlockCount;
+        newTargetPos = targetPos - (nextBlockBlockSize * blockSign);
+
+        return blockPos;
     }
     
     
@@ -330,7 +368,22 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T>
     {
         return _value;
     }
+
+    public override bool All(Func<T, Vector2, bool> lambda)
+    {
+        return Invoke(lambda);
+    }
     
+    public override bool Any(Func<T, Vector2, bool> lambda)
+    {
+        return Invoke(lambda);
+    }
+
+    private bool Invoke(Func<T, Vector2, bool> lambda)
+    {
+        return lambda.Invoke(_value, _absolutePos);
+    }
+
     public Vector2 GetPos()
     {
         return _absolutePos;

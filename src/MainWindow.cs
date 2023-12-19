@@ -83,11 +83,17 @@ public class MainWindow : Game
         foreach (var element in matrix.ToListWithPos())
             Console.WriteLine("pos=" + element.Key + " value=" + element.Value);
         
-        Console.WriteLine(matrix[-23, -23]);
-        Console.WriteLine(matrix[-23, 23]);
-        Console.WriteLine(matrix[0, 0]);
+        // Console.WriteLine(matrix[-23, -23]);
+        // Console.WriteLine(matrix[-23, 23]);
+        // Console.WriteLine(matrix[0, 0]);
 
-        
+        matrix.All((block, pos) =>
+        {
+            Console.WriteLine(block);
+            return true;
+        });
+
+
         // matrix[-16, 17] = 31;
         //
         // list = matrix.ToList();
@@ -261,8 +267,10 @@ public class MainWindow : Game
             // & !overlap & !lShift
             if (!_isOverlapping && !keyboardState.IsKeyDown(Keys.LeftShift))
             {
-                _components.Add(Brush[0].GetPos(), Brush[0]);
-                //AddComponent(Brush[0]);
+                _components[Brush[0].GetPos()] = Brush[0];
+                
+                // _components.Add(Brush[0].GetPos(), Brush[0]);
+                // AddComponent(Brush[0]);
             }
         }
         
@@ -274,9 +282,10 @@ public class MainWindow : Game
             {
                 foreach (var brushComponent in Brush)
                 {
-
-                    _components.Add(brushComponent.GetPos(), brushComponent);
-                    //AddComponent(brushComponent);
+                    _components[brushComponent.GetPos()] = brushComponent;
+                    
+                    // _components.Add(brushComponent.GetPos(), brushComponent);
+                    // AddComponent(brushComponent);
                 }
             }
             
@@ -386,15 +395,14 @@ public class MainWindow : Game
         // }
         //
         // #endregion
-
-        var visibleComponents = _components.ToList();
         
-        foreach (var component in visibleComponents)
+        _components.All((component, pos) =>
         {
-            component?.Render(_spriteBatch);
-        }
-        
-        visibleComponents.Clear();
+            component.Render(_spriteBatch);
+            Console.WriteLine("storage: " + pos + " / component: " + component.GetPos());
+            // Console.WriteLine(block.GetPos());
+            return true;
+        });
         
         foreach (var brushComponent in Brush)
         {
@@ -423,12 +431,15 @@ public class MainWindow : Game
 
         var componentRectangle = GetCollisionRectangle(component);
 
-        return _components.ToArray().Cast<Component>()
-            .Aggregate(
-                false,
-                (current, c) =>
-                    current | (c != null && GetCollisionRectangle(c).Intersects(componentRectangle))
-            );
+        return _components.Any((c, _) => c != null && GetCollisionRectangle(c).Intersects(componentRectangle));
+        
+        
+        // return _components.ToArray().Cast<Component>()
+        //     .Aggregate(
+        //         false,
+        //         (current, c) =>
+        //             current | (c != null && GetCollisionRectangle(c).Intersects(componentRectangle))
+        //     );
 
         //return _components.ToArray().Any<Component>(c => GetCollisionRectangle(c).Intersects(componentRectangle));
 
