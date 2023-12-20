@@ -26,10 +26,11 @@ public class MainWindow : Game
 
     // game logic
     // private readonly Dictionary<Vector2,List<Component>> _components = new();
-    private readonly BlockMatrix<Component> _components = new(null, new Vector2(1024, 1024));
+    private readonly BlockMatrix<Component> _components = new(null, new Vector2(262144, 262144));
     private readonly List<Menu> _menus = new();
     
     private static readonly List<Component> Brush = new();
+    private static Rectangle _brushRectangle;
     private static bool _isOverlapping;
     private static Vector2 _initialMousePos = Vector2.Zero;
     
@@ -83,38 +84,24 @@ public class MainWindow : Game
         foreach (var element in matrix.ToListWithPos())
             Console.WriteLine("pos=" + element.Key + " value=" + element.Value);
         
-        // Console.WriteLine(matrix[-23, -23]);
-        // Console.WriteLine(matrix[-23, 23]);
-        // Console.WriteLine(matrix[0, 0]);
-
-        matrix.All((block, pos) =>
+        matrix.All((block, _) =>
         {
             Console.WriteLine(block);
             return true;
         });
-
-
-        // matrix[-16, 17] = 31;
-        //
-        // list = matrix.ToList();
-        // Console.WriteLine("len: " + list.Count);
-        // foreach (var element in list)
-        // {
-        //         Console.WriteLine(element);
-        // }
-        //
-        // Console.WriteLine(matrix.Get(new Vector2(-16, 16)));
-        // Console.WriteLine(matrix.Get(new Vector2(-16, 17)));
+        
     }
 
     protected override void Initialize()
     {
-        
         Brush.Add(_activeBrush.Copy());
         
         base.Initialize();
     }
 
+    /// <summary>
+    /// Loads all of the games resources/fonts and initializes some variables
+    /// </summary>
     protected override void LoadContent()
     {
         _spriteBatch = new SpriteBatch(GraphicsDevice);
@@ -179,7 +166,7 @@ public class MainWindow : Game
     }
 
     /// <summary>
-    /// The game logic loop.
+    /// The game logic loop
     /// </summary>
     protected override void Update(GameTime gameTime)
     {
@@ -215,9 +202,9 @@ public class MainWindow : Game
         _scale = Math.Pow((mouseState.ScrollWheelValue - _scrollWheelOffset) / 1024f, 4);
         
         
-        _isOverlapping = Brush.Any(ComponentIntersect);
+        // _isOverlapping = Brush.Any(ComponentIntersect);
 
-
+        
         foreach (var menu in _menus)
         {
             menu.CheckHover(mouseScreenCords);
@@ -248,6 +235,8 @@ public class MainWindow : Game
                 var newBrush = _activeBrush.Copy();
                 newBrush.SetPos(mousePos);
                 Brush.Add(newBrush);
+                
+                _brushRectangle = GetCollisionRectangle(Brush[0]);
             }
         }
         
@@ -255,9 +244,12 @@ public class MainWindow : Game
         if ((mouseState.LeftButton == ButtonState.Released && !_prevMouseButtons[0]) || !keyboardState.IsKeyDown(Keys.LeftShift))
         {
             Brush[0].SetPos(mousePos);
+            _brushRectangle = GetCollisionRectangle(Brush[0]);
+
         }
         
-        _isOverlapping = Brush.Any(ComponentIntersect);
+        // update _isOverlapping by checking if _brushRectangle intersects with any component on screen
+        _isOverlapping = ComponentIntersect(_brushRectangle);
 
         // first tick of lMouse
         if (mouseState.LeftButton == ButtonState.Pressed && !_prevMouseButtons[0])
@@ -291,6 +283,8 @@ public class MainWindow : Game
             
             Brush.Clear();
             Brush.Add(_activeBrush.Copy());
+            _brushRectangle = GetCollisionRectangle(Brush[0]);
+
         }
 
         // lMouse
@@ -321,7 +315,13 @@ public class MainWindow : Game
                         Brush.Add(brushComponent);
                     }
                 }
-                
+
+                _brushRectangle = new Rectangle(
+                    (int)_initialMousePos.X, 
+                    (int)_initialMousePos.Y,
+                    (int)(dist.X / brushSize.X), 
+                    (int)(dist.Y / brushSize.Y));
+
                 // & !lShift & !overlap
             }
 
@@ -357,7 +357,7 @@ public class MainWindow : Game
     }
 
     /// <summary>
-    /// The draw loop.
+    /// The draw loop
     /// </summary>
     protected override void Draw(GameTime gameTime)
     {
@@ -369,40 +369,17 @@ public class MainWindow : Game
         
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         
-        // #region Culling
-        //
-        // var center = ScreenToGameCoords(_dimensions / 2f);
-        //
-        // var gridPos = center / GameConstants.CollisionGridSize;
-        // gridPos.Ceiling();
-        //  
-        // var gridWidth = (int)(_dimensions.X / _scale / GameConstants.CollisionGridSize);
-        // var gridHeight = (int)(_dimensions.Y / _scale / GameConstants.CollisionGridSize);
-        //  
-        // var visibleComponents = new List<List<Component>>();
-        //
-        // for (var x = -(int)Math.Floor(gridWidth/2f)-2; x <= (int)Math.Ceiling(gridWidth/2f)+2; x++)
-        // {
-        //     for (var y = -(int)Math.Floor(gridHeight/2f)-2; y <= (int)Math.Ceiling(gridHeight/2f)+2; y++)
-        //     {
-        //         
-        //         
-        //         if (!_components.TryGetValue(new Vector2(x + gridPos.X, y + gridPos.Y), out var collisionSquare))
-        //             continue;
-        //         
-        //         visibleComponents.Add(collisionSquare);
-        //     }
-        // }
-        //
-        // #endregion
         
-        _components.All((component, pos) =>
+        // game coords of the top left and bottom right corners of the screen, with a small buffer to prevent culling things still within the frame
+        var tlScreen = ScreenToGameCoords(new Vector2(0, 0) - new Vector2(64));
+        var brScreen = ScreenToGameCoords(_dimensions + new Vector2(64));
+        
+        
+        _components.InvokeRanged(new Range2D(tlScreen, brScreen), (component, _) =>
         {
             component.Render(_spriteBatch);
-            Console.WriteLine("storage: " + pos + " / component: " + component.GetPos());
-            // Console.WriteLine(block.GetPos());
             return true;
-        });
+        }, ResultComparison.Or, false);
         
         foreach (var brushComponent in Brush)
         {
@@ -426,25 +403,37 @@ public class MainWindow : Game
     /// <param name="component">The component to check for an intersection</param>
     private bool ComponentIntersect(Component component)
     {
-        var pos = component.GetPos();
-        var size = component.GetSize();
-
+        
         var componentRectangle = GetCollisionRectangle(component);
 
-        return _components.Any((c, _) => c != null && GetCollisionRectangle(c).Intersects(componentRectangle));
         
+        var tlScreen = ScreenToGameCoords(new Vector2(0, 0));
+        var brScreen = ScreenToGameCoords(_dimensions);
         
-        // return _components.ToArray().Cast<Component>()
-        //     .Aggregate(
-        //         false,
-        //         (current, c) =>
-        //             current | (c != null && GetCollisionRectangle(c).Intersects(componentRectangle))
-        //     );
+        var retValue = _components.InvokeRanged(
+            new Range2D(tlScreen, brScreen),
+            (c, _) => c != null && GetCollisionRectangle(c).Intersects(componentRectangle), ResultComparison.Or, false);
 
-        //return _components.ToArray().Any<Component>(c => GetCollisionRectangle(c).Intersects(componentRectangle));
+        if (retValue == null) return false;
+        return (bool)retValue;
+    }
+    
+    /// <summary>
+    /// Returns true if the specified rectangle intersects with any component.
+    /// </summary>
+    /// <param name="rectangle">The rectangle to check for an intersection</param>
+    private bool ComponentIntersect(Rectangle rectangle)
+    {
+        
+        // var tlScreen = ScreenToGameCoords(new Vector2(0, 0));
+        // var brScreen = ScreenToGameCoords(_dimensions);
+        
+        var retValue = _components.InvokeRanged(
+            new Range2D(rectangle.X, rectangle.Y, rectangle.Width + rectangle.X, rectangle.Height + rectangle.Y),
+            (c, _) => c != null && GetCollisionRectangle(c).Intersects(rectangle), ResultComparison.Or, false);
 
-        // var collisionRectangles = GetCollisionRectangle(component.GetPos());
-        // return collisionRectangles.Any(rect => rect.Intersects(componentRectangle));
+        if (retValue == null) return false;
+        return (bool)retValue;
     }
 
 
@@ -464,18 +453,6 @@ public class MainWindow : Game
             (int)componentSize.Y
         );
     }
-    
-    // private void AddComponent(Component component)
-    // {
-    //     var gridPos = component.GetPos() / GameConstants.CollisionGridSize;
-    //     gridPos.Ceiling();
-    //     
-    //     if (!_components.ContainsKey(gridPos))
-    //         _components.Add(gridPos, new List<Component>());
-    //     
-    //     _components[gridPos].Add(component.Copy());
-    // }
-    
     
     private void UpdatePrevMouseButtons(MouseState mouseState)
     {
@@ -523,15 +500,6 @@ public class MainWindow : Game
         _graphics.PreferredBackBufferHeight = _graphics.GraphicsDevice.Viewport.Height;
         
         _graphics.ApplyChanges();
-    }
-
-    /// <summary>
-    /// Register a single texture and store it in Textures.
-    /// </summary>
-    /// <param name="name">The name of the texture</param>
-    private void RegisterTexture(string name)
-    {
-        
     }
     
     
