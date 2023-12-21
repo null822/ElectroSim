@@ -1,40 +1,37 @@
 ﻿#nullable enable
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using Microsoft.Xna.Framework;
 
 namespace ElectroSim.Maths;
 
 internal class BlockMatrixBlock<T>
 {
-    internal readonly Vector2 AbsolutePos;
-    internal readonly Vector2 BlockSize;
-
+    internal readonly Vec2Long AbsolutePos;
+    internal readonly Vec2Long BlockSize;
 
     public bool IsEmpty { get; protected set; }
     
     protected readonly T? DefaultValue;
 
 
-    protected BlockMatrixBlock(T? defaultValue, Vector2 absolutePos, Vector2 blockSize)
+    protected BlockMatrixBlock(T? defaultValue, Vec2Long absolutePos, Vec2Long blockSize)
     {
         DefaultValue = defaultValue;
         AbsolutePos = absolutePos;
         BlockSize = blockSize;
     }
 
-    internal virtual bool Add(Vector2 targetPos, T? value, Vector2 absolutePos = default)
+    internal virtual bool Add(Vec2Long targetPos, T? value, Vec2Long absolutePos = default)
     {
         return false;
     }
     
-    public virtual bool Remove(Vector2 targetPos)
+    public virtual bool Remove(Vec2Long targetPos)
     {
         return false;
     }
     
-    internal virtual T? Get(Vector2 targetPos = default)
+    internal virtual T? Get(Vec2Long targetPos = default)
     {
         return default;
     }
@@ -44,7 +41,7 @@ internal class BlockMatrixBlock<T>
     /// </summary>
     /// <param name="lambda">the lambda to run</param>
     /// <returns>the AND of all of the results of the lambdas</returns>
-    public virtual bool All(Func<T, Vector2, bool> lambda)
+    public virtual bool All(Func<T, Vec2Long, bool> lambda)
     {
         return false;
     }
@@ -54,7 +51,7 @@ internal class BlockMatrixBlock<T>
     /// </summary>
     /// <param name="lambda">the lambda to run</param>
     /// <returns>the OR of all of the results of the lambdas</returns>
-    public virtual bool Any(Func<T, Vector2, bool> lambda)
+    public virtual bool Any(Func<T, Vec2Long, bool> lambda)
     {
         return false;
     }
@@ -68,7 +65,7 @@ internal class BlockMatrixBlock<T>
     /// <param name="resultComparison">the lambda to compare the results</param>
     /// <param name="resultStart">the starting value of the result</param>
     /// <returns>the result of comparing all of the results of the run lambda</returns>
-    public virtual bool? InvokeRanged(Range2D range, Func<T, Vector2, bool> run,
+    public virtual bool? InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run,
         Func<bool?, bool?, bool> resultComparison, bool resultStart)
     {
         return null;
@@ -87,29 +84,29 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     /// <summary>
     /// Size of one of the contained blocks
     /// </summary>
-    private readonly Vector2 _subBlockSize;
+    private readonly Vec2Long _subBlockSize;
 
     /// <summary>
     /// Amount of contained blocks
     /// </summary>
-    private readonly Vector2 _subBlockCount;
+    private readonly Vec2Long _subBlockCount;
 
     
-    public BlockMatrix(T? defaultValue, Vector2 blockSize, Vector2 absolutePos = new()) : base(defaultValue, absolutePos, blockSize)
+    public BlockMatrix(T? defaultValue, Vec2Long blockSize, Vec2Long absolutePos = new()) : base(defaultValue, absolutePos, blockSize)
     {
         // calculate largest W/H factors
-        var wLargestFactor = BlockMatrixUtil.LargestFactor((int)blockSize.X);
-        var hLargestFactor = BlockMatrixUtil.LargestFactor((int)blockSize.Y);
+        var wLargestFactor = BlockMatrixUtil.LargestFactor(blockSize.X);
+        var hLargestFactor = BlockMatrixUtil.LargestFactor(blockSize.Y);
         
         
         // instantiate _subBlockSize to be as large as possible, but smaller than the matrix, while keeping the matrix size divisible by it
-        _subBlockSize = new Vector2(wLargestFactor, hLargestFactor);
+        _subBlockSize = new Vec2Long(wLargestFactor, hLargestFactor);
         
         
         // instantiate _subBlocks to be of size: smallest non-1 (unless matrix size is prime) factor of passed size.
         // also store this value in a field for later use
-        _subBlockCount = new Vector2((int)(blockSize.X / wLargestFactor), (int)(blockSize.X / hLargestFactor));
-        _subBlocks = new BlockMatrixBlock<T>[(int)_subBlockCount.X, (int)_subBlockCount.X];
+        _subBlockCount = new Vec2Long(blockSize.X / wLargestFactor, blockSize.X / hLargestFactor);
+        _subBlocks = new BlockMatrixBlock<T>[_subBlockCount.X, _subBlockCount.X];
         
     }
 
@@ -119,7 +116,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     /// </summary>
     /// <param name="targetPos">the position to get the value from</param>
     /// <returns>the value</returns>
-    internal override T? Get(Vector2 targetPos = default)
+    internal override T? Get(Vec2Long targetPos = default)
     {
         // get the targetPos of the block the target is in
         var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, BlockSize, _subBlockCount);
@@ -129,23 +126,23 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
             throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
         
         // get the next block
-        var nextBlock = _subBlocks[(int)blockPos.X, (int)blockPos.Y];
+        var nextBlock = _subBlocks[blockPos.X, blockPos.Y];
         
         // calculate the new targetPos
-        var blockSign = new Vector2(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
+        var blockSign = new Vec2Long(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
         var nextBlockBlockSize = _subBlockSize / _subBlockCount;
         var newTargetPos = targetPos - (nextBlockBlockSize * blockSign);
 
         return nextBlock == null ? DefaultValue : nextBlock.Get(newTargetPos);
     }
 
-    public T? this[int x, int y]
+    public T? this[long x, long y]
     {
-        get => Get(new Vector2(x, y));
-        set => Add(new Vector2(x, y), value, new Vector2(x, y));
+        get => Get(new Vec2Long(x, y));
+        set => Add(new Vec2Long(x, y), value, new Vec2Long(x, y));
     }
     
-    public T? this[Vector2 pos]
+    public T? this[Vec2Long pos]
     {
         get => Get(pos);
         set => Add(pos, value, pos);
@@ -158,7 +155,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     /// <param name="value">the value to set</param>
     /// <param name="absolutePos">the absolute position of the element to set</param>
     /// <returns>a bool describing if the matrix was changed</returns>
-    internal override bool Add(Vector2 targetPos, T? value, Vector2 absolutePos = default)
+    internal override bool Add(Vec2Long targetPos, T? value, Vec2Long absolutePos = default)
     {
         if (value == null)
             return Remove(targetPos);
@@ -168,21 +165,21 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         
         var nextBlockPos = GetNextBlockPos(targetPos, out var newTargetPos);
         
-        var nextBlock = _subBlocks[(int)nextBlockPos.X, (int)nextBlockPos.Y];
+        var nextBlock = _subBlocks[nextBlockPos.X, nextBlockPos.Y];
         
         // if part is null, create it
         if (nextBlock == null)
         {
             nextBlock = 
-                _subBlockSize == Vector2.One ?
-                    new BlockMatrixValue<T>(DefaultValue, absolutePos, Vector2.One, value) :
+                _subBlockSize == new Vec2Long(1) ?
+                    new BlockMatrixValue<T>(DefaultValue, absolutePos, new Vec2Long(1), value) :
                     new BlockMatrix<T>(DefaultValue, _subBlockSize, absolutePos);
 
-            _subBlocks[(int)nextBlockPos.X, (int)nextBlockPos.Y] = nextBlock;
+            _subBlocks[nextBlockPos.X, nextBlockPos.Y] = nextBlock;
         }
 
         // // calculate the new targetPos
-        // var blockSign = new Vector2(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
+        // var blockSign = new Vec2Long(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
         // var nextBlockBlockSize = _subBlockSize / _subBlockCount;
         // var newTargetPos = targetPos - (nextBlockBlockSize * blockSign);
         
@@ -201,7 +198,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     /// </summary>
     /// <param name="targetPos">the position to remove the value at</param>
     /// <returns>a bool describing if the matrix was changed</returns>
-    public override bool Remove(Vector2 targetPos)
+    public override bool Remove(Vec2Long targetPos)
     {
         var success = false;
         
@@ -215,7 +212,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         GetNextBlockPos(targetPos, out var newTargetPos);
         
         // get the next block
-        var nextBlock = _subBlocks[(int)blockPos.X, (int)blockPos.Y];
+        var nextBlock = _subBlocks[blockPos.X, blockPos.Y];
         
         // if the block does not exist to begin with, nothing will change
         if (nextBlock == null) return false;
@@ -241,21 +238,21 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         return success;
     }
 
-    public override bool All(Func<T, Vector2, bool> lambda)
+    public override bool All(Func<T, Vec2Long, bool> lambda)
     {
         return _subBlocks.OfType<BlockMatrixBlock<T>>().Aggregate(
             true,
             (current, subBlock) => current & subBlock.All(lambda));
     }
     
-    public override bool Any(Func<T, Vector2, bool> lambda)
+    public override bool Any(Func<T, Vec2Long, bool> lambda)
     {
         return _subBlocks.OfType<BlockMatrixBlock<T>>().Aggregate(
             false,
             (current, subBlock) => current | subBlock.All(lambda));
     }
 
-    public override bool? InvokeRanged(Range2D range, Func<T, Vector2, bool> run, Func<bool?, bool?, bool> resultComparison, bool resultStart)
+    public override bool? InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run, Func<bool?, bool?, bool> resultComparison, bool resultStart)
     {
         var retVal = resultStart;
         
@@ -265,12 +262,12 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
             if (subBlock.IsEmpty) continue; // if the subBlock is empty, continue
             
             var subBlockRect = new Range2D(
-                (int)subBlock.AbsolutePos.X, 
-                (int)subBlock.AbsolutePos.Y, 
-                (int)subBlock.AbsolutePos.X + (int)subBlock.BlockSize.X, 
-                (int)subBlock.AbsolutePos.Y + (int)subBlock.BlockSize.Y);
+                subBlock.AbsolutePos.X, 
+                subBlock.AbsolutePos.Y, 
+                subBlock.AbsolutePos.X + subBlock.BlockSize.X, 
+                subBlock.AbsolutePos.Y + subBlock.BlockSize.Y);
             
-            if (range.Intersects(subBlockRect))
+            if (range.Overlaps(subBlockRect))
             {
                 retVal = resultComparison.Invoke(retVal, subBlock.InvokeRanged(range, run, resultComparison, resultStart));
             }
@@ -279,83 +276,6 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
 
         return retVal;
     }
-
-    
-    /// <summary>
-    /// Converts the BlockMatrix into an array, passing the default value if none is present
-    /// </summary>
-    public T?[,] ToArray()
-    {
-        var array = new T?[(int)BlockSize.X, (int)BlockSize.Y];
-
-        var half = BlockSize / 2f;
-        
-        for (var x = 0; x < (int)BlockSize.X; x++)
-        {
-            for (var y = 0; y < (int)BlockSize.Y; y++)
-            {
-                array[x, y] = Get(new Vector2(x - half.X, y - half.Y));
-            }
-        }
-
-        return array;
-    }
-    
-    
-    /// <summary>
-    /// Converts the BlockMatrix to a list of set (not-default-value) elements
-    /// </summary>
-    public List<T?> ToList()
-    {
-        var list = new List<T?>();
-
-        foreach (var block in _subBlocks)
-        {
-            switch (block)
-            {
-                case null:
-                    continue;
-                
-                case BlockMatrix<T> blockMatrix:
-                    list.AddRange(blockMatrix.ToList());
-                    break;
-                case BlockMatrixValue<T> blockValue:
-                    list.Add(blockValue.Get());
-                    break;
-            }
-        }
-        
-        return list;
-    }
-    
-    /// <summary>
-    /// Converts the BlockMatrix to a dictionary of type position:element containing all set (not-default-value) elements
-    /// </summary>
-    public Dictionary<Vector2, T?> ToListWithPos()
-    {
-        var list = new Dictionary<Vector2, T?>();
-
-        foreach (var block in _subBlocks)
-        {
-            switch (block)
-            {
-                case null:
-                    continue;
-                
-                case BlockMatrix<T> blockMatrix:
-                    foreach (var element in blockMatrix.ToListWithPos())
-                        list.Add(element.Key, element.Value);
-                    break;
-                
-                case BlockMatrixValue<T> blockValue:
-                    list.Add(blockValue.GetPos(), blockValue.Get());
-                    break;
-            }
-        }
-        
-        return list;
-    }
-
 
     private bool CheckEmpty()
     {
@@ -382,7 +302,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         return isEmpty;
     }
 
-    private Vector2 GetNextBlockPos(Vector2 targetPos, out Vector2 newTargetPos)
+    private Vec2Long GetNextBlockPos(Vec2Long targetPos, out Vec2Long newTargetPos)
     {
         // get the targetPos of the block the target is in
         var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, BlockSize, _subBlockCount);
@@ -392,7 +312,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
             throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
         
         // calculate the new targetPos
-        var blockSign = new Vector2(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
+        var blockSign = new Vec2Long(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
         var nextBlockBlockSize = _subBlockSize / _subBlockCount;
         newTargetPos = targetPos - (nextBlockBlockSize * blockSign);
 
@@ -405,15 +325,15 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
 internal class BlockMatrixValue<T> : BlockMatrixBlock<T>
 {
     private T _value;
-    // private readonly Vector2 _absolutePos;
+    // private readonly Vec2Long _absolutePos;
     
-    public BlockMatrixValue(T? defaultValue, Vector2 absolutePos, Vector2 blockSize, T value) : base(defaultValue, absolutePos, blockSize)
+    public BlockMatrixValue(T? defaultValue, Vec2Long absolutePos, Vec2Long blockSize, T value) : base(defaultValue, absolutePos, blockSize)
     {
         // _absolutePos = absolutePos;
         _value = value;
     }
 
-    internal override bool Add(Vector2 targetPos, T? value, Vector2 absolutePos = default)
+    internal override bool Add(Vec2Long targetPos, T? value, Vec2Long absolutePos = default)
     {
         if (value == null)
             return false;
@@ -422,36 +342,36 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T>
         return true;
     }
 
-    internal override T Get(Vector2 targetPos = default)
+    internal override T Get(Vec2Long targetPos = default)
     {
         return _value;
     }
 
-    public override bool All(Func<T, Vector2, bool> lambda)
+    public override bool All(Func<T, Vec2Long, bool> lambda)
     {
         return Invoke(lambda);
     }
     
-    public override bool Any(Func<T, Vector2, bool> lambda)
+    public override bool Any(Func<T, Vec2Long, bool> lambda)
     {
         return Invoke(lambda);
     }
 
-    private bool Invoke(Func<T, Vector2, bool> lambda)
+    private bool Invoke(Func<T, Vec2Long, bool> lambda)
     {
         return lambda.Invoke(_value, AbsolutePos);
     }
     
-    public override bool? InvokeRanged(Range2D range, Func<T, Vector2, bool> run, Func<bool?, bool?, bool> resultComparison, bool resultStart)
+    public override bool? InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run, Func<bool?, bool?, bool> resultComparison, bool resultStart)
     {
         
         var subBlockRect = new Range2D(
-            (int)AbsolutePos.X,
-            (int)AbsolutePos.Y, 
-            (int)AbsolutePos.X + (int)BlockSize.X, 
-            (int)AbsolutePos.Y + (int)BlockSize.Y);
+            AbsolutePos.X,
+            AbsolutePos.Y, 
+            AbsolutePos.X + BlockSize.X, 
+            AbsolutePos.Y + BlockSize.Y);
         
-        if (range.Intersects(subBlockRect))
+        if (range.Overlaps(subBlockRect))
         {
             return run.Invoke(_value, AbsolutePos);
         }
@@ -459,7 +379,7 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T>
         return null;
     }
 
-    public Vector2 GetPos()
+    public Vec2Long GetPos()
     {
         return AbsolutePos;
     }
@@ -467,23 +387,17 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T>
 
 internal static class BlockMatrixUtil
 {
-    internal static Vector2 GetBlockIndexFromPos(Vector2 localPos, Vector2 blockSize, Vector2 subBlockCount)
+    internal static Vec2Long GetBlockIndexFromPos(Vec2Long localPos, Vec2Long blockSize, Vec2Long subBlockCount)
     {
-        
-        var e = new Vector2(
-            (int)Math.Floor(localPos.X / blockSize.X) + subBlockCount.X/2f,
-            (int)Math.Floor(localPos.Y / blockSize.Y) + subBlockCount.Y/2f
+        return new Vec2Long(
+            (long)Math.Floor((double)localPos.X / blockSize.X) + subBlockCount.X/2,
+            (long)Math.Floor((double)localPos.Y / blockSize.Y) + subBlockCount.Y/2
         );
-        
-        // Console.WriteLine(e);
-
-        return e;
-
     }
     
-    internal static int LargestFactor(int value)
+    internal static long LargestFactor(long value)
     {
-        for (var i = 2; i < value; i++)
+        for (long i = 2; i < value; i++)
         {
             if (value % i == 0)
                 return value / i;
@@ -497,7 +411,7 @@ internal static class BlockMatrixUtil
 
 static class ResultComparison
 {
-    public static Func<bool?, bool?, bool> Or = (a, b) =>
+    public static readonly Func<bool?, bool?, bool> Or = (a, b) =>
     {
         if (a == null && b == null) return false;
         if (a == null && b != null) return (bool)b;
@@ -507,7 +421,7 @@ static class ResultComparison
         return false;
     };
     
-    public static Func<bool?, bool?, bool> And = (a, b) =>
+    public static readonly  Func<bool?, bool?, bool> And = (a, b) =>
     {
         if (a == null && b == null) return false;
         if (a == null && b != null) return (bool)b;

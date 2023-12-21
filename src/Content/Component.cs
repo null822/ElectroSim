@@ -1,4 +1,6 @@
-﻿using Microsoft.Xna.Framework;
+﻿using System;
+using ElectroSim.Maths;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace ElectroSim.Content;
@@ -8,14 +10,14 @@ namespace ElectroSim.Content;
 /// </summary>
 public class Component
 {
-    private Vector2 _pos;
+    private Vec2Long _pos;
     private readonly string _texture;
 
     protected readonly ComponentDetails Details;
     
-    protected Component(ComponentDetails details, string texture = "missing", Vector2? pos = null)
+    protected Component(ComponentDetails details, string texture = "missing", Vec2Long? pos = null)
     {
-        var posNonNull = pos ?? Vector2.Zero;
+        var posNonNull = pos ?? new Vec2Long(0);
 
         Details = details;
         _texture = texture;
@@ -31,21 +33,23 @@ public class Component
     public void Render(SpriteBatch spriteBatch, Color? tint = null)
     {
         var tintNonNull = tint ?? Color.White;
-        
-        var scale = (float)MainWindow.GetScale();
-        var scaleVec = new Vector2(scale);
-
-        var center = Vector2.Divide(MainWindow.GetScreenSize(), 2);
-
         var texture = Textures.GetTexture(_texture);
+
+        var scaleVec = new Vec2Double(MainWindow.GetScale());
+        var screenCenter = (Vec2Long)MainWindow.GetScreenSize() / 2;
+        
+        var screenPos = (_pos - screenCenter + MainWindow.GetTranslation()) * scaleVec + screenCenter;
+        
+        // Console.WriteLine(screenCenter);
+        // Console.WriteLine(_pos + " => " + screenPos);
         
         spriteBatch.Draw(
             texture,
-            (_pos - center + MainWindow.GetTranslation()) * scaleVec + center,
+            screenPos,
             null,
             tintNonNull,
             0f,
-            new Vector2(texture.Width / 2f, texture.Height / 2f),
+            new Vec2Float(texture.Width / 2f, texture.Height / 2f),
             scaleVec,
             SpriteEffects.None,
             0f
@@ -57,10 +61,10 @@ public class Component
     /// </summary>
     /// <param name="pos"></param>
     /// <returns></returns>
-    private static Vector2 AlignPos(Vector2 pos)
+    private static Vec2Long AlignPos(Vec2Long pos)
     {
         pos /= GameConstants.MinComponentSize;
-        pos.Round();
+        // as an integer, it gets rounded automatically
         pos *= GameConstants.MinComponentSize;
 
         return pos;
@@ -70,7 +74,7 @@ public class Component
     /// Sets the position of the component.
     /// </summary>
     /// <param name="pos">The new position</param>
-    public void SetPos(Vector2 pos)
+    public void SetPos(Vec2Long pos)
     {
         _pos = AlignPos(pos);
     }
@@ -79,7 +83,7 @@ public class Component
     /// Adds to the position of the component.
     /// </summary>
     /// <param name="pos">The position to add</param>
-    public void MovePos(Vector2 pos)
+    public void MovePos(Vec2Long pos)
     {
         _pos += AlignPos(pos);
     }
@@ -87,18 +91,18 @@ public class Component
     /// <summary>
     /// Returns the position of the component.
     /// </summary>
-    public Vector2 GetPos()
+    public Vec2Long GetPos()
     {
-        return _pos;
+        return (Vec2Long)_pos;
     }
     
     /// <summary>
     /// Returns the size of the component.
     /// </summary>
-    public Vector2 GetSize()
+    public Vec2Float GetSize()
     {
         var texture = Textures.GetTexture(_texture);
-        return new Vector2(texture.Width, texture.Height);
+        return new Vec2Float(texture.Width, texture.Height);
     }
     
     

@@ -5,44 +5,39 @@ namespace ElectroSim.Maths;
 
 public class Range2D
 {
-    private readonly int _minX;
-    private readonly int _minY;
-    private readonly int _maxX;
-    private readonly int _maxY;
+    private readonly long _left;
+    private readonly long _bottom;
+    private readonly long _right;
+    private readonly long _top;
 
-    public Range2D(int minX, int minY, int maxX, int maxY)
+    public Range2D(long left, long bottom, long right, long top)
     {
-        _minX = minX;
-        _minY = minY;
-        _maxX = maxX;
-        _maxY = maxY;
+        _left = left;
+        _bottom = bottom;
+        _right = right;
+        _top = top;
     }
     
-    public Range2D(Vector2 tl, Vector2 br)
+    public Range2D(Vec2Long tl, Vec2Long br)
     {
-        _minX = (int)tl.X;
-        _minY = (int)tl.Y;
-        _maxX = (int)br.X;
-        _maxY = (int)br.Y;
-    }
-
-    public bool Intersects(Range2D range)
-    {
-        return this.ToRectangle().Intersects(range.ToRectangle());
+        _left = tl.X;
+        _bottom = tl.Y;
+        _right = br.X;
+        _top = br.Y;
     }
     
-    public bool Contains(Range2D range)
+    public bool Overlaps(Range2D range)
     {
-        return this.ToRectangle().Contains(range.ToRectangle());
+        return _left < range._right && _right > range._left && _top > range._bottom && _bottom < range._top;
     }
     
-    public bool Contains(Vector2 point)
-    {
-        return this.ToRectangle().Contains(point);
-    }
+    // if (RectA.X1 < RectB.X2 && RectA.X2 > RectB.X1 && RectA.Y1 > RectB.Y2 && RectA.Y2 < RectB.Y1) 
+    
+    //  A<X1 or A1<X or B<Y1 or B1<Y
 
-    private Rectangle ToRectangle()
+
+    public override string ToString()
     {
-        return new Rectangle(_minX, _minY, _maxX - _minX, _maxY - _minY);
+        return GameConstants.Range2DStringFormat ? $"({_left}, {_bottom})..({_right}, {_top})" : $"({_left}..{_right}, {_bottom}..{_top})";
     }
 }

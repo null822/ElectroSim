@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using ElectroSim.Content;
 using ElectroSim.Gui;
 using ElectroSim.Gui.MenuElements;
@@ -25,26 +26,25 @@ public class MainWindow : Game
     private static SpriteBatch _spriteBatch;
 
     // game logic
-    // private readonly Dictionary<Vector2,List<Component>> _components = new();
-    private readonly BlockMatrix<Component> _components = new(null, new Vector2(262144, 262144));
+    private readonly BlockMatrix<Component> _components = new(null, new Vec2Long(4611686018427387904, 4611686018427387904));
     private readonly List<Menu> _menus = new();
     
     private static readonly List<Component> Brush = new();
     private static Rectangle _brushRectangle;
     private static bool _isOverlapping;
-    private static Vector2 _initialMousePos = Vector2.Zero;
+    private static Vec2Long _initialMousePos = Vector2.Zero;
     
     private static double _scale = 1;
-    private static Vector2 _translation = Vector2.Zero;
-    private static Vector2 _prevTranslation = Vector2.Zero;
+    private static Vec2Double _translation = Vector2.Zero;
+    private static Vec2Double _prevTranslation = Vector2.Zero;
 
-    private static Vector2 _dimensions = Vector2.One;
+    private static Vec2Int _dimensions = Vector2.One;
     
 
 
     // controls
     private readonly bool[] _prevMouseButtons = new bool[5];
-    private Vector2 _middleMouseCords = Vector2.Zero;
+    private Vec2Int _middleMouseCords = Vector2.Zero;
     private int _scrollWheelOffset = -1200;
     
     
@@ -59,6 +59,8 @@ public class MainWindow : Game
         
         // "System Checks"
         
+        Console.WriteLine("===============[SYSTEM CHECKS]===============");
+
         Console.WriteLine(Prefixes.FormatNumber(3.1e-6, Units.Get("Farad")));
         
         var voltage1 = Value.Parse("1e+28 V");
@@ -70,26 +72,19 @@ public class MainWindow : Game
         Console.WriteLine(voltage1 + " * " + current1 + " = " + voltage1 * current1);
         Console.WriteLine(current2 + " / " + voltage2 + " = " + current2 / voltage2);
 
-        var matrix = new BlockMatrix<int>(0, new Vector2(65, 65));
-        
-        matrix[-23, -23] = 1;
-        matrix[-23,  23] = 2;
-
-        foreach (var element in matrix.ToListWithPos())
-            Console.WriteLine("pos=" + element.Key + " value=" + element.Value);
-        
-        matrix[-23, -23] = 3;
-        matrix[-23,  23] = 4;
-        
-        foreach (var element in matrix.ToListWithPos())
-            Console.WriteLine("pos=" + element.Key + " value=" + element.Value);
-        
-        matrix.All((block, _) =>
+        // write / creation test
+        var matrix = new BlockMatrix<int>(0, new Vec2Long(65, 65))
         {
-            Console.WriteLine(block);
-            return true;
-        });
+            [-23, -23] = 1
+        };
+        matrix.All((element, pos) => { Console.WriteLine(element + " @ " + pos); return true; });
         
+        // rewrite test
+        matrix[-23, -23] = 99;
+        
+        matrix.All((element, pos) => { Console.WriteLine(element + " @ " + pos); return true; });
+        
+        Console.WriteLine("===============[BEGIN PROGRAM]===============");
     }
 
     protected override void Initialize()
@@ -182,7 +177,7 @@ public class MainWindow : Game
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
 
-        var mouseScreenCords = new Vector2(mouseState.X, mouseState.Y);
+        var mouseScreenCords = new Vec2Int(mouseState.X, mouseState.Y);
 
         const int min = 450;
         const int max = 2400;
@@ -337,7 +332,7 @@ public class MainWindow : Game
             }
             else
             {
-                _translation = _prevTranslation + (mouseScreenCords - _middleMouseCords) / (float)_scale;
+                _translation = _prevTranslation + (mouseScreenCords - _middleMouseCords) / _scale;
             }
         }
         
@@ -369,17 +364,18 @@ public class MainWindow : Game
         
         _spriteBatch.Begin(samplerState: SamplerState.PointClamp);
         
+        // render components (with off-screen culling)
         
         // game coords of the top left and bottom right corners of the screen, with a small buffer to prevent culling things still within the frame
         var tlScreen = ScreenToGameCoords(new Vector2(0, 0) - new Vector2(64));
-        var brScreen = ScreenToGameCoords(_dimensions + new Vector2(64));
-        
+        var brScreen = ScreenToGameCoords(_dimensions + new Vec2Int(64));
         
         _components.InvokeRanged(new Range2D(tlScreen, brScreen), (component, _) =>
         {
             component.Render(_spriteBatch);
             return true;
         }, ResultComparison.Or, false);
+        
         
         foreach (var brushComponent in Brush)
         {
@@ -396,27 +392,6 @@ public class MainWindow : Game
         
         base.Draw(gameTime);
     }
-
-    /// <summary>
-    /// Returns true if the specified component intersects with another component.
-    /// </summary>
-    /// <param name="component">The component to check for an intersection</param>
-    private bool ComponentIntersect(Component component)
-    {
-        
-        var componentRectangle = GetCollisionRectangle(component);
-
-        
-        var tlScreen = ScreenToGameCoords(new Vector2(0, 0));
-        var brScreen = ScreenToGameCoords(_dimensions);
-        
-        var retValue = _components.InvokeRanged(
-            new Range2D(tlScreen, brScreen),
-            (c, _) => c != null && GetCollisionRectangle(c).Intersects(componentRectangle), ResultComparison.Or, false);
-
-        if (retValue == null) return false;
-        return (bool)retValue;
-    }
     
     /// <summary>
     /// Returns true if the specified rectangle intersects with any component.
@@ -424,9 +399,6 @@ public class MainWindow : Game
     /// <param name="rectangle">The rectangle to check for an intersection</param>
     private bool ComponentIntersect(Rectangle rectangle)
     {
-        
-        // var tlScreen = ScreenToGameCoords(new Vector2(0, 0));
-        // var brScreen = ScreenToGameCoords(_dimensions);
         
         var retValue = _components.InvokeRanged(
             new Range2D(rectangle.X, rectangle.Y, rectangle.Width + rectangle.X, rectangle.Height + rectangle.Y),
@@ -468,20 +440,20 @@ public class MainWindow : Game
     /// Converts coords from the screen (like mouse pos) into game coords (like positions of components).
     /// </summary>
     /// <param name="screenCords">The coords from the screen to convert</param>
-    private static Vector2 ScreenToGameCoords(Vector2 screenCords)
+    private static Vec2Long ScreenToGameCoords(Vec2Int screenCords)
     {
-        var center = _dimensions / 2f;
-        return (screenCords - center) / (float)_scale - _translation + center;
+        var center = _dimensions / 2;
+        return (Vec2Long)((screenCords - center) / _scale - _translation + center);
     }
     
     /// <summary>
     /// Converts coords from the game (like positions of components) into screen coords (like mouse pos).
     /// </summary>
     /// <param name="gameCoords">The coords from the game to convert</param>
-    private static Vector2 GameToScreenCoords(Vector2 gameCoords)
+    private static Vec2Long GameToScreenCoords(Vec2Long gameCoords)
     {
         var center = _dimensions / 2f;
-        return new Vector2((float)_scale) * (gameCoords + _translation - center) + center;
+        return (Vec2Long)((gameCoords + _translation - center) * _scale + center);
     }
     
     
@@ -531,7 +503,7 @@ public class MainWindow : Game
     }
     
     
-    // public methods
+    // public getters
 
     /// <summary>
     /// Returns zoom scale multiplier.
@@ -546,7 +518,7 @@ public class MainWindow : Game
     /// Returns the translation (pan) of the world.
     /// </summary>
     /// <returns></returns>
-    public static Vector2 GetTranslation()
+    public static Vec2Double GetTranslation()
     {
         return _translation;
     }
@@ -555,7 +527,7 @@ public class MainWindow : Game
     /// Returns the screen size.
     /// </summary>
     /// <returns></returns>
-    public static Vector2 GetScreenSize()
+    public static Vec2Int GetScreenSize()
     {
         return _dimensions;
     }
