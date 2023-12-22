@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using ElectroSim.Maths;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -8,7 +9,7 @@ namespace ElectroSim.Content;
 /// <summary>
 /// The parent class of all components.
 /// </summary>
-public class Component
+public class Component : EqualityComparer<Component>
 {
     private Vec2Long _pos;
     private readonly string _texture;
@@ -93,7 +94,7 @@ public class Component
     /// </summary>
     public Vec2Long GetPos()
     {
-        return (Vec2Long)_pos;
+        return _pos;
     }
     
     /// <summary>
@@ -129,5 +130,51 @@ public class Component
     {
         return new Component(Details, _texture, _pos);
     }
+    
+    // overrides
+    
+    public static bool operator ==(Component a, Component b)
+    {
+        if (object.Equals(a, null) || object.Equals(b, null))
+            return false;
 
+        return a.Details == b.Details;
+    }
+    
+    public static bool operator !=(Component a, Component b)
+    {
+        if (object.Equals(a, null) || object.Equals(b, null))
+            return true;
+
+        return a.Details != b.Details;
+    }
+
+    public bool Equals(Component other)
+    {
+        if (Equals(other, null)) return false;
+        return Equals(Details, other.Details);
+    }
+
+    public override bool Equals(object obj)
+    {
+        if (ReferenceEquals(null, obj)) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != this.GetType()) return false;
+        return Equals((Component)obj);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Details);
+    }
+
+    public override bool Equals(Component a, Component b)
+    {
+        return a == b;
+    }
+
+    public override int GetHashCode(Component obj)
+    {
+        return HashCode.Combine(obj.Details);
+    }
 }

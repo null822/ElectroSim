@@ -1,7 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Threading;
+using System.Text;
 using ElectroSim.Content;
 using ElectroSim.Gui;
 using ElectroSim.Gui.MenuElements;
@@ -26,7 +27,8 @@ public class MainWindow : Game
     private static SpriteBatch _spriteBatch;
 
     // game logic
-    private readonly BlockMatrix<Component> _components = new(null, new Vec2Long(4611686018427387904, 4611686018427387904));
+    private readonly BlockMatrix<Component> _components = new(Registry.Components.Capacitor.GetVariant(1e-6), new Vec2Long(4611686018427387904, 4611686018427387904));
+    // private readonly BlockMatrix<Component> _components = new(Registry.Components.Capacitor.GetVariant(1e-6), new Vec2Long(65536, 65536));
     private readonly List<Menu> _menus = new();
     
     private static readonly List<Component> Brush = new();
@@ -40,8 +42,8 @@ public class MainWindow : Game
 
     private static Vec2Int _dimensions = Vector2.One;
     
-
-
+    
+    
     // controls
     private readonly bool[] _prevMouseButtons = new bool[5];
     private Vec2Int _middleMouseCords = Vector2.Zero;
@@ -71,18 +73,6 @@ public class MainWindow : Game
         
         Console.WriteLine(voltage1 + " * " + current1 + " = " + voltage1 * current1);
         Console.WriteLine(current2 + " / " + voltage2 + " = " + current2 / voltage2);
-
-        // write / creation test
-        var matrix = new BlockMatrix<int>(0, new Vec2Long(65, 65))
-        {
-            [-23, -23] = 1
-        };
-        matrix.All((element, pos) => { Console.WriteLine(element + " @ " + pos); return true; });
-        
-        // rewrite test
-        matrix[-23, -23] = 99;
-        
-        matrix.All((element, pos) => { Console.WriteLine(element + " @ " + pos); return true; });
         
         Console.WriteLine("===============[BEGIN PROGRAM]===============");
     }
@@ -177,6 +167,21 @@ public class MainWindow : Game
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
 
+        if (keyboardState.IsKeyDown(Keys.Enter))
+        {
+            Console.WriteLine("============[Dumping BlockMatrix]============");
+            
+            var svgMap = _components.GetSvgMap().ToString();
+            
+            var file = File.Create("BlockMatrixMap.svg");
+            
+            file.Write(Encoding.ASCII.GetBytes(svgMap));
+            
+            file.Close();
+            
+            throw new Exception("Saved Image");
+        }
+
         var mouseScreenCords = new Vec2Int(mouseState.X, mouseState.Y);
 
         const int min = 450;
@@ -269,10 +274,7 @@ public class MainWindow : Game
             {
                 foreach (var brushComponent in Brush)
                 {
-                    _components[brushComponent.GetPos()] = brushComponent;
-                    
-                    // _components.Add(brushComponent.GetPos(), brushComponent);
-                    // AddComponent(brushComponent);
+                    _components[brushComponent.GetPos() / 8] = brushComponent;
                 }
             }
             
@@ -294,6 +296,7 @@ public class MainWindow : Game
                 var dist = mousePos - _initialMousePos;
 
                 var brushSize = _activeBrush.GetSize();
+                brushSize = new Vec2Float(1);
                 
                 var signX = dist.X < 0;
                 var signY = dist.Y < 0;

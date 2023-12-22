@@ -15,4 +15,6 @@ public static class GameConstants
     /// true = "(-5, -5)..(5, 5)"
     /// </summary>
     public const bool Range2DStringFormat = true;
+
+    public const double BlockMatrixSvgScale = 1;
 }

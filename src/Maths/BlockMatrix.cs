@@ -1,35 +1,43 @@
 ﻿#nullable enable
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 namespace ElectroSim.Maths;
 
-internal class BlockMatrixBlock<T>
+internal class BlockMatrixBlock<T> where T : EqualityComparer<T>
 {
+    /// <summary>
+    /// Absolute position of the BlockMatrixBlock
+    /// </summary>
     internal readonly Vec2Long AbsolutePos;
+    /// <summary>
+    /// Size of the BlockMatrixBlock
+    /// </summary>
     internal readonly Vec2Long BlockSize;
 
     public bool IsEmpty { get; protected set; }
     
-    protected readonly T? DefaultValue;
+    protected readonly T DefaultValue;
 
-
-    protected BlockMatrixBlock(T? defaultValue, Vec2Long absolutePos, Vec2Long blockSize)
+    protected BlockMatrixBlock(T defaultValue, Vec2Long? absolutePos, Vec2Long blockSize)
     {
         DefaultValue = defaultValue;
-        AbsolutePos = absolutePos;
         BlockSize = blockSize;
+
+        AbsolutePos = absolutePos ?? -blockSize/2;
     }
 
-    internal virtual bool Add(Vec2Long targetPos, T? value, Vec2Long absolutePos = default)
+    internal virtual bool Add(Vec2Long targetPos, T value)
     {
         return false;
     }
     
-    public virtual bool Remove(Vec2Long targetPos)
-    {
-        return false;
-    }
+    // public virtual bool Remove(Vec2Long targetPos)
+    // {
+    //     return false;
+    // }
     
     internal virtual T? Get(Vec2Long targetPos = default)
     {
@@ -71,15 +79,19 @@ internal class BlockMatrixBlock<T>
         return null;
     }
 
+    public virtual StringBuilder GetSvgMap(StringBuilder? nullableSvgString = null)
+    {
+        return new StringBuilder();
+    }
 }
 
 
-internal class BlockMatrix<T> : BlockMatrixBlock<T>
+internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : EqualityComparer<T>
 {
     /// <summary>
     /// 2D Array containing all of the sub-blocks
     /// </summary>
-    private readonly BlockMatrixBlock<T>?[,] _subBlocks;
+    private readonly BlockMatrixBlock<T>[,] _subBlocks;
 
     /// <summary>
     /// Size of one of the contained blocks
@@ -92,7 +104,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     private readonly Vec2Long _subBlockCount;
 
     
-    public BlockMatrix(T? defaultValue, Vec2Long blockSize, Vec2Long absolutePos = new()) : base(defaultValue, absolutePos, blockSize)
+    public BlockMatrix(T defaultValue, Vec2Long blockSize, Vec2Long? blockAbsolutePos = null, T? populateValue = null) : base(defaultValue, blockAbsolutePos, blockSize)
     {
         // calculate largest W/H factors
         var wLargestFactor = BlockMatrixUtil.LargestFactor(blockSize.X);
@@ -108,8 +120,20 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         _subBlockCount = new Vec2Long(blockSize.X / wLargestFactor, blockSize.X / hLargestFactor);
         _subBlocks = new BlockMatrixBlock<T>[_subBlockCount.X, _subBlockCount.X];
         
-    }
+        var absolutePos = blockAbsolutePos ?? -blockSize/2;
 
+        var value = populateValue ?? defaultValue;
+
+        for (var x = 0; x < _subBlockCount.X; x++)
+        {
+            for (var y = 0; y < _subBlockCount.Y; y++)
+            {
+                var nextBlockAbsolutePos = AbsolutePos + (new Vec2Long(x, y) * _subBlockSize);
+                
+                _subBlocks[x, y] = new BlockMatrixValue<T>(defaultValue, nextBlockAbsolutePos, _subBlockSize, value);
+            }
+        }
+    }
 
     /// <summary>
     /// Gets a value from the matrix
@@ -118,74 +142,77 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
     /// <returns>the value</returns>
     internal override T? Get(Vec2Long targetPos = default)
     {
-        // get the targetPos of the block the target is in
-        var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, BlockSize, _subBlockCount);
-
-        // throw exception if the position is out of bounds
-        if (blockPos.X < 0 || blockPos.X > _subBlockCount.X || blockPos.Y < 0 || blockPos.Y > _subBlockCount.Y)
-            throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
+        var nextBlockPos = GetNextBlockPos(targetPos, out var newTargetPos);
+        var nextBlock = _subBlocks[nextBlockPos.X, nextBlockPos.Y];
         
-        // get the next block
-        var nextBlock = _subBlocks[blockPos.X, blockPos.Y];
-        
-        // calculate the new targetPos
-        var blockSign = new Vec2Long(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
-        var nextBlockBlockSize = _subBlockSize / _subBlockCount;
-        var newTargetPos = targetPos - (nextBlockBlockSize * blockSign);
-
-        return nextBlock == null ? DefaultValue : nextBlock.Get(newTargetPos);
+        return nextBlock.Get(newTargetPos);
     }
 
     public T? this[long x, long y]
     {
         get => Get(new Vec2Long(x, y));
-        set => Add(new Vec2Long(x, y), value, new Vec2Long(x, y));
+        set => Add(new Vec2Long(x, y), value ?? DefaultValue);
     }
     
     public T? this[Vec2Long pos]
     {
         get => Get(pos);
-        set => Add(pos, value, pos);
+        set => Add(pos, value ?? DefaultValue);
     }
-    
+
     /// <summary>
     /// Adds/sets a value in the matrix
     /// </summary>
     /// <param name="targetPos">the position of the element to set, relative to this matrix</param>
     /// <param name="value">the value to set</param>
-    /// <param name="absolutePos">the absolute position of the element to set</param>
     /// <returns>a bool describing if the matrix was changed</returns>
-    internal override bool Add(Vec2Long targetPos, T? value, Vec2Long absolutePos = default)
+    internal override bool Add(Vec2Long targetPos, T value)
     {
-        if (value == null)
-            return Remove(targetPos);
-
-        if (value.Equals(DefaultValue))
-            return Remove(targetPos);
-        
         var nextBlockPos = GetNextBlockPos(targetPos, out var newTargetPos);
+        var nextBlock = _subBlocks[nextBlockPos.X, nextBlockPos.Y] ?? throw new Exception("Block was null");
         
-        var nextBlock = _subBlocks[nextBlockPos.X, nextBlockPos.Y];
+        var nextBlockAbsolutePos = AbsolutePos + (nextBlockPos * _subBlockSize);
         
-        // if part is null, create it
-        if (nextBlock == null)
+        // if part is a BlockMatrixValue of size 2+, change it to a BlockMatrix
+        if (nextBlock is BlockMatrixValue<T> nextBlock2 && _subBlockSize >= new Vec2Long(2))
         {
-            nextBlock = 
-                _subBlockSize == new Vec2Long(1) ?
-                    new BlockMatrixValue<T>(DefaultValue, absolutePos, new Vec2Long(1), value) :
-                    new BlockMatrix<T>(DefaultValue, _subBlockSize, absolutePos);
-
+            // Console.WriteLine(BlockSize);
+            
+            var nextBlockValue = nextBlock2.GetValue();
+            
+            nextBlock = new BlockMatrix<T>(DefaultValue, _subBlockSize, nextBlockAbsolutePos, nextBlockValue);
+            
             _subBlocks[nextBlockPos.X, nextBlockPos.Y] = nextBlock;
         }
-
-        // // calculate the new targetPos
-        // var blockSign = new Vec2Long(blockPos.X <= 0 ? -1 : 1, blockPos.Y <= 0 ? -1 : 1);
-        // var nextBlockBlockSize = _subBlockSize / _subBlockCount;
-        // var newTargetPos = targetPos - (nextBlockBlockSize * blockSign);
         
         // recursively add the value
-        var success = nextBlock.Add(newTargetPos, value, absolutePos);
-
+        var success = nextBlock.Add(newTargetPos, value);
+        
+        // compression
+         
+        // for each subBlock,
+        for (var x = 0; x < _subBlockCount.X; x++)
+        {
+            for (var y = 0; y < _subBlockCount.Y; y++)
+            {
+                // if it is a BlockMatrix,
+                if (_subBlocks[x, y] is BlockMatrix<T> subBlockMatrix)
+                {
+                    // and all of its subBlocks are BlockMatrixValues,
+                    if (!subBlockMatrix._subBlocks.Cast<BlockMatrixBlock<T>?>()
+                            .Aggregate(true, (current, subSubBlock) => current & subSubBlock is BlockMatrixValue<T>))
+                        continue;
+                     
+                    // check if all of these subBlocks are equal
+                    if (subBlockMatrix._subBlocks.Cast<BlockMatrixValue<T>>().Distinct().Count() == 1)
+                    {
+                        // if so, replace the entire subBlock with a BlockMatrixValue of the correct size
+                        _subBlocks[x, y] = new BlockMatrixValue<T>(DefaultValue, nextBlockAbsolutePos, _subBlockSize, value);
+                    }
+                }
+            }
+        }
+        
         // if we added something, the matrix will no longer be empty
         if (success)
             IsEmpty = false;
@@ -193,7 +220,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         return success;
     }
     
-    /// <summary>
+    /*/// <summary>
     /// Removes a value in the matrix.
     /// </summary>
     /// <param name="targetPos">the position to remove the value at</param>
@@ -208,7 +235,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         // throw exception if the position is out of bounds
         if (blockPos.X < 0 || blockPos.X > _subBlockCount.X || blockPos.Y < 0 || blockPos.Y > _subBlockCount.Y)
             throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
-
+    
         GetNextBlockPos(targetPos, out var newTargetPos);
         
         // get the next block
@@ -230,13 +257,13 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
             
             success = true;
         }
-
+    
         // update the IsEmpty flag if something changed
         if (success)
             IsEmpty = CheckEmpty();
         
         return success;
-    }
+    }*/
 
     public override bool All(Func<T, Vec2Long, bool> lambda)
     {
@@ -258,7 +285,6 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         
         foreach (var subBlock in _subBlocks)
         {
-            if (subBlock == null) continue; // if the subBlock is null, continue
             if (subBlock.IsEmpty) continue; // if the subBlock is empty, continue
             
             var subBlockRect = new Range2D(
@@ -277,31 +303,6 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
         return retVal;
     }
 
-    private bool CheckEmpty()
-    {
-        var isEmpty = true;
-        
-        foreach (var part in _subBlocks)
-        {
-            // ignore null or empty parts
-            if (part == null) continue;
-            
-            // if it is a BlockMatrix pass the call downwards
-            if (part.GetType() == typeof(BlockMatrix<T>))
-            {
-                isEmpty &= ((BlockMatrix<T>)part).CheckEmpty();
-            }
-            
-            // otherwise, if it is a BlockMatrixValue, return false as the matrix is not empty
-            else if (part.GetType() == typeof(BlockMatrixValue<T>))
-            {
-                return !((BlockMatrixValue<T>)part).Get()!.Equals(DefaultValue);
-            }
-        }
-
-        return isEmpty;
-    }
-
     private Vec2Long GetNextBlockPos(Vec2Long targetPos, out Vec2Long newTargetPos)
     {
         // get the targetPos of the block the target is in
@@ -318,22 +319,52 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T>
 
         return blockPos;
     }
+
+    public override StringBuilder GetSvgMap(StringBuilder? nullableSvgString = null)
+    {
+        const double scale = GameConstants.BlockMatrixSvgScale;
+        
+        var svgString = nullableSvgString ?? new StringBuilder(
+            $"<svg " +
+                $"viewBox=\"" +
+                    $"{-BlockSize.X/2f * scale} " +
+                    $"{-BlockSize.Y/2f * scale} " +
+                    $"{BlockSize.X/2f * scale} " +
+                    $"{BlockSize.Y/2f * scale}" +
+                $"\">" +
+            $"<svg/>"
+            );
+        
+        var rect = $"<rect style=\"fill:#ffffff;fill-opacity:0;stroke:#000000;stroke-width:{Math.Min(BlockSize.X / 64d, 1)}\" " +
+                   $"width=\"{BlockSize.X * scale}\" height=\"{BlockSize.Y * scale}\" " +
+                   $"x=\"{AbsolutePos.X * scale}\" y=\"{AbsolutePos.Y * scale}\"/>";
+        
+        // insert the rectangle into the svg string, 6 characters before the end (taking into account the closing `</svg>` tag)
+        svgString.Insert(svgString.Length-6, rect);
+        
+        // pass the call downwards
+        foreach (var subBlock in _subBlocks)
+        {
+            subBlock.GetSvgMap(svgString);
+        }
+        
+        return svgString;
+
+    }
     
     
 }
 
-internal class BlockMatrixValue<T> : BlockMatrixBlock<T>
+internal class BlockMatrixValue<T> : BlockMatrixBlock<T> where T : EqualityComparer<T>
 {
     private T _value;
-    // private readonly Vec2Long _absolutePos;
     
-    public BlockMatrixValue(T? defaultValue, Vec2Long absolutePos, Vec2Long blockSize, T value) : base(defaultValue, absolutePos, blockSize)
+    public BlockMatrixValue(T defaultValue, Vec2Long absolutePos, Vec2Long blockSize, T value) : base(defaultValue, absolutePos, blockSize)
     {
-        // _absolutePos = absolutePos;
         _value = value;
     }
 
-    internal override bool Add(Vec2Long targetPos, T? value, Vec2Long absolutePos = default)
+    internal override bool Add(Vec2Long targetPos, T? value)
     {
         if (value == null)
             return false;
@@ -378,10 +409,85 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T>
         
         return null;
     }
+    
+    public override StringBuilder GetSvgMap(StringBuilder? nullableSvgString = null)
+    {
+        
+        const double scale = GameConstants.BlockMatrixSvgScale;
+
+        var svgString = nullableSvgString ?? new StringBuilder(
+            $"<svg " +
+            $"viewBox=\"" +
+            $"{-BlockSize.X/2f * scale} " +
+            $"{-BlockSize.Y/2f * scale} " +
+            $"{BlockSize.X/2f * scale} " +
+            $"{BlockSize.Y/2f * scale}" +
+            $"\">" +
+            $"<svg/>"
+        );
+        
+        
+        var fillColor = "#00ff00";
+
+        if (_value == DefaultValue) fillColor = "#ff0000;fill-opacity:0.1";
+        if (BlockSize == new Vec2Long(1)) fillColor = "#ffff00";
+        
+        var rect = $"<rect style=\"fill:{fillColor};stroke:#000000;stroke-width:{Math.Min(BlockSize.X / 64d, 1)}\" " +
+                   $"width=\"{BlockSize.X * scale}\" height=\"{BlockSize.Y * scale}\" " +
+                   $"x=\"{AbsolutePos.X * scale}\" y=\"{AbsolutePos.Y * scale}\"/>";
+        
+        // Console.WriteLine(AbsolutePos + " => " + fillColor);
+        
+        svgString.Insert(svgString.Length-6, rect);
+
+        return svgString;
+    }
 
     public Vec2Long GetPos()
     {
         return AbsolutePos;
+    }
+    
+    public T GetValue()
+    {
+        return _value;
+    }
+    
+    // overrides
+    
+    
+    public static bool operator ==(BlockMatrixValue<T> a, BlockMatrixValue<T> b)
+    {
+        if (Equals(a, null) || Equals(b, null))
+            return false;
+
+        return a._value == b._value;
+    }
+    
+    public static bool operator !=(BlockMatrixValue<T> a, BlockMatrixValue<T> b)
+    {
+        if (Equals(a, null) || Equals(b, null))
+            return false;
+
+        return a._value != b._value;
+    }
+    
+    private bool Equals(BlockMatrixValue<T> other)
+    {
+        return EqualityComparer<T>.Default.Equals(_value, other._value);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (ReferenceEquals(null, obj)) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        if (obj.GetType() != this.GetType()) return false;
+        return Equals((BlockMatrixValue<T>)obj);
+    }
+
+    public override int GetHashCode()
+    {
+        return EqualityComparer<T>.Default.GetHashCode(_value);
     }
 }
 
@@ -409,7 +515,7 @@ internal static class BlockMatrixUtil
     
 }
 
-static class ResultComparison
+internal static class ResultComparison
 {
     public static readonly Func<bool?, bool?, bool> Or = (a, b) =>
     {
