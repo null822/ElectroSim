@@ -30,19 +30,17 @@ public class Component : EqualityComparer<Component>
     /// Renders the component.
     /// </summary>
     /// <param name="spriteBatch">The spritebatch to render to</param>
+    /// <param name="pos">the position to render the component at</param>
     /// <param name="tint">Tint colour (supports transparency) (optional)</param>
-    public void Render(SpriteBatch spriteBatch, Color? tint = null)
+    public virtual void Render(SpriteBatch spriteBatch, Vec2Long pos, Color? tint = null)
     {
         var tintNonNull = tint ?? Color.White;
         var texture = Textures.GetTexture(_texture);
+        
+        var scaleVec = new Vec2Double(MainWindow.GetScale()) / 32;
+        
+        var screenPos = Util.GameToScreenCoords(pos);
 
-        var scaleVec = new Vec2Double(MainWindow.GetScale());
-        var screenCenter = (Vec2Long)MainWindow.GetScreenSize() / 2;
-        
-        var screenPos = (_pos - screenCenter + MainWindow.GetTranslation()) * scaleVec + screenCenter;
-        
-        // Console.WriteLine(screenCenter);
-        // Console.WriteLine(_pos + " => " + screenPos);
         
         spriteBatch.Draw(
             texture,
@@ -50,7 +48,7 @@ public class Component : EqualityComparer<Component>
             null,
             tintNonNull,
             0f,
-            new Vec2Float(texture.Width / 2f, texture.Height / 2f),
+            new Vec2Float(0),
             scaleVec,
             SpriteEffects.None,
             0f
@@ -100,10 +98,10 @@ public class Component : EqualityComparer<Component>
     /// <summary>
     /// Returns the size of the component.
     /// </summary>
-    public Vec2Float GetSize()
+    public Vec2Long GetSize()
     {
         var texture = Textures.GetTexture(_texture);
-        return new Vec2Float(texture.Width, texture.Height);
+        return new Vec2Long(texture.Width, texture.Height);
     }
     
     
@@ -138,7 +136,7 @@ public class Component : EqualityComparer<Component>
         if (object.Equals(a, null) || object.Equals(b, null))
             return false;
 
-        return a.Details == b.Details;
+        return a.Details.ToString() == b.Details.ToString();
     }
     
     public static bool operator !=(Component a, Component b)
@@ -176,5 +174,10 @@ public class Component : EqualityComparer<Component>
     public override int GetHashCode(Component obj)
     {
         return HashCode.Combine(obj.Details);
+    }
+
+    public override string ToString()
+    {
+        return Details.ToString();
     }
 }

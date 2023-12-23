@@ -11,41 +11,46 @@ using ElectroSim.Maths.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using MonoGame.Extended;
 using MonoGame.Extended.BitmapFonts;
 using Component = ElectroSim.Content.Component;
+using static ElectroSim.Util;
 
 namespace ElectroSim;
 
 public class MainWindow : Game
 {
-    // debug/testing
-    private Component _activeBrush = Registry.Components.Capacitor.GetVariant(1e-6);
-    
     
     // rendering
     private readonly GraphicsDeviceManager _graphics;
     private static SpriteBatch _spriteBatch;
 
-    // game logic
-    private readonly BlockMatrix<Component> _components = new(Registry.Components.Capacitor.GetVariant(1e-6), new Vec2Long(4611686018427387904, 4611686018427387904));
-    // private readonly BlockMatrix<Component> _components = new(Registry.Components.Capacitor.GetVariant(1e-6), new Vec2Long(65536, 65536));
+    // world/ui
+    // private readonly BlockMatrix<Component> _components = new(Registry.Components.Empty, new Vec2Long(4611686018427387904, 4611686018427387904));
+    private readonly BlockMatrix<Component> _components = new(Registry.Components.Empty, new Vec2Long(65536, 65536));
     private readonly List<Menu> _menus = new();
     
-    private static readonly List<Component> Brush = new();
-    private static Rectangle _brushRectangle;
+    // world editing
+    private Component _activeBrush = Registry.Components.Capacitor.GetVariant(1e-6);
+    private static Range2D _brushRange;
     private static bool _isOverlapping;
     private static Vec2Long _initialMousePos = Vector2.Zero;
     
+    // camera position
     private static double _scale = 1;
     private static Vec2Double _translation = Vector2.Zero;
     private static Vec2Double _prevTranslation = Vector2.Zero;
-
-    private static Vec2Int _dimensions = Vector2.One;
+    private static Vec2Long _gridSize;
+    
+    // output/screen
+    private static Vec2Int _screenSize = Vector2.One;
     
     
     
     // controls
-    private readonly bool[] _prevMouseButtons = new bool[5];
+    // private readonly bool[] _prevMouseButtons = new bool[5];
+    private MouseState _prevMouseState;
+    private KeyboardState _prevKeyboardState;
     private Vec2Int _middleMouseCords = Vector2.Zero;
     private int _scrollWheelOffset = -1200;
     
@@ -61,9 +66,14 @@ public class MainWindow : Game
         
         // "System Checks"
         
-        Console.WriteLine("===============[SYSTEM CHECKS]===============");
+        Debug("===============[SYSTEM CHECKS]===============");
+        
+        Log("log text");
+        Debug("debug text");
+        Warn("warn text");
+        Error("error text");
 
-        Console.WriteLine(Prefixes.FormatNumber(3.1e-6, Units.Get("Farad")));
+        Debug(Prefixes.FormatNumber(3.1e-6, Units.Get("Farad")));
         
         var voltage1 = Value.Parse("1e+28 V");
         var current1 = Value.Parse("1e-30 A");
@@ -71,17 +81,22 @@ public class MainWindow : Game
         var voltage2 = Value.Parse("1.1 V");
         var current2 = Value.Parse("45 A");
         
-        Console.WriteLine(voltage1 + " * " + current1 + " = " + voltage1 * current1);
-        Console.WriteLine(current2 + " / " + voltage2 + " = " + current2 / voltage2);
+        Debug(voltage1 + " * " + current1 + " = " + voltage1 * current1);
+        Debug(current2 + " / " + voltage2 + " = " + current2 / voltage2);
+
+        var r1 = new Range2D(-2, -2, 2, 4);
+        var r2 = new Range2D(0, 1, 3, 3);
         
-        Console.WriteLine("===============[BEGIN PROGRAM]===============");
+        Debug(r1.Overlap(r2));
+        
+        Debug("===============[BEGIN PROGRAM]===============");
     }
 
     protected override void Initialize()
     {
-        Brush.Add(_activeBrush.Copy());
-        
         base.Initialize();
+        
+        Console.WriteLine("Initialized");
     }
 
     /// <summary>
@@ -160,32 +175,29 @@ public class MainWindow : Game
             return;
         
         // Logic
-        _dimensions = new Vector2(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
+        _screenSize = new Vector2(_graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
         
         
         // Controls
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
 
-        if (keyboardState.IsKeyDown(Keys.Enter))
+        if (keyboardState.IsKeyDown(Keys.Enter) && !_prevKeyboardState.IsKeyDown(Keys.Enter))
         {
-            Console.WriteLine("============[Dumping BlockMatrix]============");
             
             var svgMap = _components.GetSvgMap().ToString();
             
             var file = File.Create("BlockMatrixMap.svg");
-            
             file.Write(Encoding.ASCII.GetBytes(svgMap));
-            
             file.Close();
             
-            throw new Exception("Saved Image");
+            Log("BlockMatrix Dumped");
         }
 
         var mouseScreenCords = new Vec2Int(mouseState.X, mouseState.Y);
 
-        const int min = 450;
-        const int max = 2400;
+        const int min = 1000;
+        const int max = 4000;
 
         _scrollWheelOffset = (mouseState.ScrollWheelValue - _scrollWheelOffset) switch
         {
@@ -195,162 +207,119 @@ public class MainWindow : Game
         };
         
         // only run controls logic when hovered
-        if (mouseScreenCords.X < 0 || mouseScreenCords.X > _dimensions.X || mouseScreenCords.Y < 0 || mouseScreenCords.Y > _dimensions.Y)
+        if (mouseScreenCords.X < 0 || mouseScreenCords.X > _screenSize.X || mouseScreenCords.Y < 0 || mouseScreenCords.Y > _screenSize.Y)
             return;
         
-        var mousePos = ScreenToGameCoords(mouseScreenCords);
+        var mousePos = Util.ScreenToGameCoords(mouseScreenCords);
         _scale = Math.Pow((mouseState.ScrollWheelValue - _scrollWheelOffset) / 1024f, 4);
-        
-        
-        // _isOverlapping = Brush.Any(ComponentIntersect);
-
         
         foreach (var menu in _menus)
         {
             menu.CheckHover(mouseScreenCords);
         }
 
-        // lMouse first tick
-        if (mouseState.LeftButton == ButtonState.Pressed && !_prevMouseButtons[0])
+        switch (mouseState.LeftButton)
         {
-            if (_menus.Any(menu => menu.Click()))
-            {
-                UpdatePrevMouseButtons(mouseState);
+            // lMouse first tick
+            case ButtonState.Pressed when _prevMouseState.LeftButton == ButtonState.Released && _menus.Any(menu => menu.Click()):
+                UpdatePrevMouseState(mouseState);
                 return;
-            }
+            // !lMouse
+            case ButtonState.Released when _prevMouseState.LeftButton == ButtonState.Pressed:
+                break;
         }
 
-        // !lMouse
-        if (mouseState.LeftButton == ButtonState.Released && !_prevMouseButtons[0])
-        {
-            
-        }
-        
         // !lShift
         if (!keyboardState.IsKeyDown(Keys.LeftShift))
         {
-            if (Brush.Count != 1)
+            if (_brushRange.GetArea() > 1)
             {
-                Brush.Clear();
-                var newBrush = _activeBrush.Copy();
-                newBrush.SetPos(mousePos);
-                Brush.Add(newBrush);
-                
-                _brushRectangle = GetCollisionRectangle(Brush[0]);
+                _brushRange = new Range2D(mousePos.X, mousePos.Y, mousePos.X + 1, mousePos.Y + 1);
             }
         }
         
-        // !lMouse || !lShift
-        if ((mouseState.LeftButton == ButtonState.Released && !_prevMouseButtons[0]) || !keyboardState.IsKeyDown(Keys.LeftShift))
+        // tick after lMouse || !lShift
+        if ((mouseState.LeftButton == ButtonState.Released && _prevMouseState.LeftButton == ButtonState.Released) || !keyboardState.IsKeyDown(Keys.LeftShift))
         {
-            Brush[0].SetPos(mousePos);
-            _brushRectangle = GetCollisionRectangle(Brush[0]);
-
+            _brushRange = new Range2D(mousePos.X, mousePos.Y, mousePos.X + 1, mousePos.Y + 1);
         }
         
-        // update _isOverlapping by checking if _brushRectangle intersects with any component on screen
-        _isOverlapping = ComponentIntersect(_brushRectangle);
+        // update _isOverlapping by checking if _brushRange intersects with any component on screen
+        _isOverlapping = ComponentIntersect(_brushRange);
 
         // first tick of lMouse
-        if (mouseState.LeftButton == ButtonState.Pressed && !_prevMouseButtons[0])
+        if (mouseState.LeftButton == ButtonState.Pressed && _prevMouseState.LeftButton == ButtonState.Released)
         {
             _initialMousePos = mousePos;
 
             // & !overlap & !lShift
             if (!_isOverlapping && !keyboardState.IsKeyDown(Keys.LeftShift))
             {
-                _components[Brush[0].GetPos()] = Brush[0];
-                
-                // _components.Add(Brush[0].GetPos(), Brush[0]);
+                // _components[Brush[0].GetPos()] = Brush[0];
+
+                _components[_brushRange] = _activeBrush;
+
+                // _components.Set(Brush[0].GetPos(), Brush[0]);
                 // AddComponent(Brush[0]);
             }
         }
         
         // tick after lMouse
-        if (mouseState.LeftButton == ButtonState.Released && _prevMouseButtons[0])
+        if (mouseState.LeftButton == ButtonState.Released && _prevMouseState.LeftButton == ButtonState.Pressed)
         {
             // & lShift
             if (keyboardState.IsKeyDown(Keys.LeftShift) && !_isOverlapping)
             {
-                foreach (var brushComponent in Brush)
-                {
-                    _components[brushComponent.GetPos() / 8] = brushComponent;
-                }
+                // create the contents of the brush in the world (add to _components)
+                _components.Set(_brushRange, _activeBrush);
             }
             
-            Brush.Clear();
-            Brush.Add(_activeBrush.Copy());
-            _brushRectangle = GetCollisionRectangle(Brush[0]);
-
+            _brushRange = new Range2D(mousePos.X, mousePos.Y, mousePos.X + 1, mousePos.Y + 1);
         }
 
         // lMouse
         if (mouseState.LeftButton == ButtonState.Pressed)
         {
-            
             // & lShift
             if (keyboardState.IsKeyDown(Keys.LeftShift))
             {
-                Brush.Clear();
-
-                var dist = mousePos - _initialMousePos;
-
-                var brushSize = _activeBrush.GetSize();
-                brushSize = new Vec2Float(1);
-                
-                var signX = dist.X < 0;
-                var signY = dist.Y < 0;
-                var sign = new Vector2(signX ? -1 : 1, signY ? -1 : 1);
-                
-                
-                for (var x = 0; signX ? x > dist.X : x < dist.X; x+= (int)(brushSize.X * sign.X))
-                {
-                    for (var y = 0; signY ? y > dist.Y : y < dist.Y; y+=(int)(brushSize.Y * sign.Y))
-                    {
-                        var brushComponent = _activeBrush.Copy();
-                        brushComponent.SetPos(new Vector2(x + _initialMousePos.X, y +_initialMousePos.Y));
-
-                        Brush.Add(brushComponent);
-                    }
-                }
-
-                _brushRectangle = new Rectangle(
-                    (int)_initialMousePos.X, 
+                _brushRange = new Range2D(
+                    (int)_initialMousePos.X,
                     (int)_initialMousePos.Y,
-                    (int)(dist.X / brushSize.X), 
-                    (int)(dist.Y / brushSize.Y));
-
-                // & !lShift & !overlap
+                    (int)mousePos.X + 1,
+                    (int)mousePos.Y + 1);
             }
-
         }
         
         // mMouse
         if (mouseState.MiddleButton == ButtonState.Pressed)
         {
-            if (!_prevMouseButtons[2])
+            if (_prevMouseState.MiddleButton == ButtonState.Released)
             {
                 _middleMouseCords = mouseScreenCords;
                 _prevTranslation = _translation;
             }
             else
             {
-                _translation = _prevTranslation + (mouseScreenCords - _middleMouseCords) / _scale;
+                _translation = _prevTranslation + (Vec2Double)(mouseScreenCords - _middleMouseCords) / _scale;
             }
         }
         
         // rMouse
-        if (mouseState.RightButton == ButtonState.Pressed && !_prevMouseButtons[1])
+        if (mouseState.RightButton == ButtonState.Pressed && _prevMouseState.RightButton == ButtonState.Released)
         {
-            _translation = Vector2.Zero;
+            _translation = new Vec2Double(0);
             _scrollWheelOffset = mouseState.ScrollWheelValue - 1200;
             
             _scale = Math.Pow(Math.Min(Math.Max((mouseState.ScrollWheelValue - _scrollWheelOffset) / 1024f, 0e-4), 0e4), 4);
 
         }
 
-        UpdatePrevMouseButtons(mouseState);
-        
+        UpdatePrevMouseState(mouseState);
+        UpdatePrevKeyboardState(keyboardState);
+
+        _gridSize = Util.GameToScreenCoords(new Vec2Long(0, 0)) - Util.GameToScreenCoords(new Vec2Long(1, 1));
+
         base.Update(gameTime);
     }
 
@@ -369,21 +338,25 @@ public class MainWindow : Game
         
         // render components (with off-screen culling)
         
-        // game coords of the top left and bottom right corners of the screen, with a small buffer to prevent culling things still within the frame
-        var tlScreen = ScreenToGameCoords(new Vector2(0, 0) - new Vector2(64));
-        var brScreen = ScreenToGameCoords(_dimensions + new Vec2Int(64));
+        // game coords of the top left and bottom right corners of the screen, with a small buffer to prevent culling things still partially within the frame
+        var tlScreen = Util.ScreenToGameCoords(new Vector2(0, 0) - new Vector2(64));
+        var brScreen = Util.ScreenToGameCoords(_screenSize + new Vec2Int(64));
         
-        _components.InvokeRanged(new Range2D(tlScreen, brScreen), (component, _) =>
+        _components.InvokeRanged(new Range2D(tlScreen, brScreen), (component, pos) =>
         {
-            component.Render(_spriteBatch);
+            component.Render(_spriteBatch, pos);
             return true;
-        }, ResultComparison.Or, false);
+        }, ResultComparisons.Or, true);
         
+        // render brush outline
+
+        var brushScreenCoordsBl = Util.GameToScreenCoords(new Vec2Long(_brushRange.MinX, _brushRange.MinY));
+        var brushScreenCoordsTr = Util.GameToScreenCoords(new Vec2Long(_brushRange.MaxX, _brushRange.MaxY));
+
+        var brushScreenSize = brushScreenCoordsTr - brushScreenCoordsBl;
         
-        foreach (var brushComponent in Brush)
-        {
-            brushComponent.Render(_spriteBatch, (_isOverlapping ? Color.Red : Color.White) * 0.25f);
-        }
+        _spriteBatch.DrawRectangle(brushScreenCoordsBl.X, brushScreenCoordsBl.Y, brushScreenSize.X, brushScreenSize.Y,
+            Color.White, 2f);
 
         foreach (var menu in _menus)
         {
@@ -395,70 +368,44 @@ public class MainWindow : Game
         
         base.Draw(gameTime);
     }
-    
+
     /// <summary>
     /// Returns true if the specified rectangle intersects with any component.
     /// </summary>
     /// <param name="rectangle">The rectangle to check for an intersection</param>
-    private bool ComponentIntersect(Rectangle rectangle)
+    private bool ComponentIntersect(Range2D rectangle)
     {
-        
-        var retValue = _components.InvokeRanged(
-            new Range2D(rectangle.X, rectangle.Y, rectangle.Width + rectangle.X, rectangle.Height + rectangle.Y),
-            (c, _) => c != null && GetCollisionRectangle(c).Intersects(rectangle), ResultComparison.Or, false);
-
-        if (retValue == null) return false;
-        return (bool)retValue;
+        var retValue = _components.InvokeRanged(rectangle,
+            (c, _) => c != null && GetCollisionRectangle(c).Overlaps(rectangle), ResultComparisons.Or, true);
+        return retValue;
     }
-
 
     /// <summary>
     /// Returns a rectangle representing the collision of a component
     /// </summary>
     /// <param name="component">the component to get the collision of</param>
-    private static Rectangle GetCollisionRectangle(Component component)
+    private static Range2D GetCollisionRectangle(Component component)
     {
         var componentPos = component.GetPos();
         var componentSize = component.GetSize();
         
-        return new Rectangle(
-            (int)(componentPos.X - componentSize.X / 2f),
-            (int)(componentPos.Y - componentSize.Y / 2f),
-            (int)componentSize.X,
-            (int)componentSize.Y
+        return new Range2D(
+            (long)(componentPos.X - componentSize.X / 2f),
+            (long)(componentPos.Y - componentSize.Y / 2f),
+            (long)(componentPos.X + componentSize.X / 2f),
+            (long)(componentPos.Y + componentSize.Y / 2f)
         );
     }
     
-    private void UpdatePrevMouseButtons(MouseState mouseState)
+    private void UpdatePrevMouseState(MouseState state)
     {
-        _prevMouseButtons[0] = mouseState.LeftButton == ButtonState.Pressed;
-        _prevMouseButtons[1] = mouseState.RightButton == ButtonState.Pressed;
-        _prevMouseButtons[2] = mouseState.MiddleButton == ButtonState.Pressed;
-        _prevMouseButtons[3] = mouseState.XButton1 == ButtonState.Pressed;
-        _prevMouseButtons[4] = mouseState.XButton2 == ButtonState.Pressed;
-    }
-
-    
-    /// <summary>
-    /// Converts coords from the screen (like mouse pos) into game coords (like positions of components).
-    /// </summary>
-    /// <param name="screenCords">The coords from the screen to convert</param>
-    private static Vec2Long ScreenToGameCoords(Vec2Int screenCords)
-    {
-        var center = _dimensions / 2;
-        return (Vec2Long)((screenCords - center) / _scale - _translation + center);
+        _prevMouseState = state;
     }
     
-    /// <summary>
-    /// Converts coords from the game (like positions of components) into screen coords (like mouse pos).
-    /// </summary>
-    /// <param name="gameCoords">The coords from the game to convert</param>
-    private static Vec2Long GameToScreenCoords(Vec2Long gameCoords)
+    private void UpdatePrevKeyboardState(KeyboardState state)
     {
-        var center = _dimensions / 2f;
-        return (Vec2Long)((gameCoords + _translation - center) * _scale + center);
+        _prevKeyboardState = state;
     }
-    
     
     /// <summary>
     /// Update the program when the size changes.
@@ -511,7 +458,6 @@ public class MainWindow : Game
     /// <summary>
     /// Returns zoom scale multiplier.
     /// </summary>
-    /// <returns></returns>
     public static double GetScale()
     {
         return _scale;
@@ -520,7 +466,6 @@ public class MainWindow : Game
     /// <summary>
     /// Returns the translation (pan) of the world.
     /// </summary>
-    /// <returns></returns>
     public static Vec2Double GetTranslation()
     {
         return _translation;
@@ -529,11 +474,17 @@ public class MainWindow : Game
     /// <summary>
     /// Returns the screen size.
     /// </summary>
-    /// <returns></returns>
     public static Vec2Int GetScreenSize()
     {
-        return _dimensions;
+        return _screenSize;
     }
-
-
+    
+    /// <summary>
+    /// Returns the screen size.
+    /// </summary>
+    public static Vec2Long GetGridSize()
+    {
+        return _gridSize;
+    }
+    
 }

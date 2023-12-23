@@ -93,7 +93,7 @@ public struct Vec2Long
     }
     public static bool operator >(Vec2Long a, Vec2Long b)
     {
-        return a.X >= b.X && a.Y >= b.Y;
+        return a.X > b.X && a.Y > b.Y;
     }
     public static bool operator <(Vec2Long a, Vec2Long b)
     {
@@ -233,7 +233,7 @@ public struct Vec2Int
     }
     public static bool operator >(Vec2Int a, Vec2Int b)
     {
-        return a.X >= b.X && a.Y >= b.Y;
+        return a.X > b.X && a.Y > b.Y;
     }
     public static bool operator <(Vec2Int a, Vec2Int b)
     {
@@ -342,7 +342,7 @@ public struct Vec2Float
     }
     public static bool operator >(Vec2Float a, Vec2Float b)
     {
-        return a.X >= b.X && a.Y >= b.Y;
+        return a.X > b.X && a.Y > b.Y;
     }
     public static bool operator <(Vec2Float a, Vec2Float b)
     {
@@ -461,7 +461,7 @@ public struct Vec2Double
     }
     public static bool operator >(Vec2Double a, Vec2Double b)
     {
-        return a.X >= b.X && a.Y >= b.Y;
+        return a.X > b.X && a.Y > b.Y;
     }
     public static bool operator <(Vec2Double a, Vec2Double b)
     {

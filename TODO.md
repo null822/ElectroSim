@@ -1,5 +1,6 @@
 ﻿# TODO
-everything.
+ - everything
+ - fix culling (still broken)
 
 
 # Conversions

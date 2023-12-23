@@ -6,7 +6,7 @@ namespace ElectroSim.Content;
 
 public class ComponentVariations<T> where T : Component
 {
-    private readonly Dictionary<double, Component> _components = new();
+    private readonly Dictionary<double, T> _components = new();
     private readonly PropertyType _variablePropertyType;
     private readonly Unit _variableUnit;
     
@@ -37,9 +37,9 @@ public class ComponentVariations<T> where T : Component
     /// <summary>
     /// Returns the variants with the specified variable value. Returns null if no component was found.
     /// </summary>
-    public Component GetVariant(double variableValue)
+    public T GetVariant(double variableValue)
     {
-        return _components.TryGetValue(variableValue, out var component) ? component : null;
+        return _components.GetValueOrDefault(variableValue);
     }
     
     /// <summary>

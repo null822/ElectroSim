@@ -10,6 +10,9 @@ namespace ElectroSim.Registry;
 /// </summary>
 public static class Components
 {
+    public static readonly Empty Empty =
+        new(new ComponentDetails("Empty", "There is nothing here.", new Dictionary<PropertyType, Value>()));
+    
     public static readonly ComponentVariations<Capacitor> Capacitor = new(
         "Capacitor",
         "Stores Energy",

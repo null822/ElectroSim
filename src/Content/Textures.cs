@@ -32,7 +32,7 @@ public static class Textures
     public static Texture2D GetTexture(string name)
     {
         if (!TextureDictionary.ContainsKey(name))
-            Util.ConsoleWarn($"The texture '{name}' does not exist");
+            Util.Warn($"The texture '{name}' does not exist");
         
         var texture = TextureDictionary.TryGetValue(name, out var texture1) ? texture1 : TextureDictionary["missing"];
         return texture;

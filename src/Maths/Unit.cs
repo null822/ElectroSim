@@ -98,7 +98,7 @@ public class Unit
         };
         
         if (sign == "?")
-            Util.ConsoleWarn("Unknown Sign: " + signChar);
+            Util.Warn("Unknown Sign: " + signChar);
         
         
         var newUnit = new Unit(

@@ -16,9 +16,10 @@ internal class BlockMatrixBlock<T> where T : EqualityComparer<T>
     /// Size of the BlockMatrixBlock
     /// </summary>
     internal readonly Vec2Long BlockSize;
-
-    public bool IsEmpty { get; protected set; }
     
+    /// <summary>
+    /// The default value of the BlockMatrix (everything is default by default)
+    /// </summary>
     protected readonly T DefaultValue;
 
     protected BlockMatrixBlock(T defaultValue, Vec2Long? absolutePos, Vec2Long blockSize)
@@ -29,60 +30,75 @@ internal class BlockMatrixBlock<T> where T : EqualityComparer<T>
         AbsolutePos = absolutePos ?? -blockSize/2;
     }
 
-    internal virtual bool Add(Vec2Long targetPos, T value)
+    /// <summary>
+    /// Sets a single value in the BlockMatrix
+    /// </summary>
+    /// <param name="targetPos">the position of the value to set, relative to the BlockMatrix called in</param>
+    /// <param name="value">the value to set</param>
+    /// <returns>a bool describing if the BlockMatrix was changed (ignoring compression)</returns>
+    internal virtual bool Set(Vec2Long targetPos, T value)
     {
         return false;
     }
     
-    // public virtual bool Remove(Vec2Long targetPos)
-    // {
-    //     return false;
-    // }
+    /// <summary>
+    /// Sets an area of values to one single value in the BlockMatrix
+    /// </summary>
+    /// <param name="targetRange">the area of values to set, relative to the BlockMatrix called in</param>
+    /// <param name="value">the value to set</param>
+    /// <returns>a bool describing if the BlockMatrix was changed (ignoring compression)</returns>
+    internal virtual bool Set(Range2D targetRange, T value)
+    {
+        return false;
+    }
     
-    internal virtual T? Get(Vec2Long targetPos = default)
+    /// <summary>
+    /// Gets a value from the BlockMatrix
+    /// </summary>
+    /// <param name="targetPos"></param>
+    /// <returns></returns>
+    internal virtual T? Get(Vec2Long targetPos)
     {
         return default;
     }
-
-    /// <summary>
-    /// Runs a lambda for each element. Optimised for the BlockMatrix structure.
-    /// </summary>
-    /// <param name="lambda">the lambda to run</param>
-    /// <returns>the AND of all of the results of the lambdas</returns>
-    public virtual bool All(Func<T, Vec2Long, bool> lambda)
-    {
-        return false;
-    }
     
     /// <summary>
-    /// Runs a lambda for each element. Optimised for the BlockMatrix structure.
+    /// Runs the specified lambda for each element residing in the supplied range
     /// </summary>
-    /// <param name="lambda">the lambda to run</param>
-    /// <returns>the OR of all of the results of the lambdas</returns>
-    public virtual bool Any(Func<T, Vec2Long, bool> lambda)
+    /// <param name="range">range of positions of elements to run the lambda for</param>
+    /// <param name="run">the lambda to run at each element</param>
+    /// <param name="rc">a ResultComparison to compare the results</param>
+    /// <param name="excludeDefault">whether to exclude all elements with the default value</param>
+    /// <returns>the result of comparing all of the results of the run lambdas</returns>
+    public virtual bool InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run,
+        ResultComparison rc, bool excludeDefault = false)
     {
         return false;
     }
 
     /// <summary>
-    /// Runs the specified lambda for each element only if the pos lambda returns true when given the pos of the element.
-    /// Only works if the pos lambda matches elements linearly ()
+    /// Creates an SVG representing the current structure of the entire BlockMatrix
     /// </summary>
-    /// <param name="range">range of elements to run the lambda at</param>
-    /// <param name="run">the lambda to run at each valid element</param>
-    /// <param name="resultComparison">the lambda to compare the results</param>
-    /// <param name="resultStart">the starting value of the result</param>
-    /// <returns>the result of comparing all of the results of the run lambda</returns>
-    public virtual bool? InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run,
-        Func<bool?, bool?, bool> resultComparison, bool resultStart)
-    {
-        return null;
-    }
-
+    /// <param name="nullableSvgString">optional parameter, used internally to pass the SVG around. Will likely break if changed.</param>
+    /// <returns>the contents of an SVG file, ready to be saved</returns>
     public virtual StringBuilder GetSvgMap(StringBuilder? nullableSvgString = null)
     {
         return new StringBuilder();
     }
+
+    /// <summary>
+    /// Returns the BlockMatrixBlock represented as a Range2D
+    /// </summary>
+    /// <returns></returns>
+    internal Range2D GetRange()
+    {
+        return new Range2D(
+            AbsolutePos.X, 
+            AbsolutePos.Y,
+            AbsolutePos.X + BlockSize.X,
+            AbsolutePos.Y + BlockSize.Y);
+    }
+    
 }
 
 
@@ -110,183 +126,158 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : EqualityComparer<T
         var wLargestFactor = BlockMatrixUtil.LargestFactor(blockSize.X);
         var hLargestFactor = BlockMatrixUtil.LargestFactor(blockSize.Y);
         
-        
         // instantiate _subBlockSize to be as large as possible, but smaller than the matrix, while keeping the matrix size divisible by it
         _subBlockSize = new Vec2Long(wLargestFactor, hLargestFactor);
-        
         
         // instantiate _subBlocks to be of size: smallest non-1 (unless matrix size is prime) factor of passed size.
         // also store this value in a field for later use
         _subBlockCount = new Vec2Long(blockSize.X / wLargestFactor, blockSize.X / hLargestFactor);
         _subBlocks = new BlockMatrixBlock<T>[_subBlockCount.X, _subBlockCount.X];
         
-        var absolutePos = blockAbsolutePos ?? -blockSize/2;
-
+        // populate the _subBlocks array with either the defaultValue or a supplied populateValue if present
         var value = populateValue ?? defaultValue;
 
         for (var x = 0; x < _subBlockCount.X; x++)
         {
             for (var y = 0; y < _subBlockCount.Y; y++)
             {
-                var nextBlockAbsolutePos = AbsolutePos + (new Vec2Long(x, y) * _subBlockSize);
+                var nextBlockAbsolutePos = AbsolutePos + new Vec2Long(x, y) * _subBlockSize;
                 
                 _subBlocks[x, y] = new BlockMatrixValue<T>(defaultValue, nextBlockAbsolutePos, _subBlockSize, value);
             }
         }
     }
-
+    
     /// <summary>
     /// Gets a value from the matrix
     /// </summary>
     /// <param name="targetPos">the position to get the value from</param>
     /// <returns>the value</returns>
-    internal override T? Get(Vec2Long targetPos = default)
+    internal override T? Get(Vec2Long targetPos)
     {
         var nextBlockPos = GetNextBlockPos(targetPos, out var newTargetPos);
         var nextBlock = _subBlocks[nextBlockPos.X, nextBlockPos.Y];
         
         return nextBlock.Get(newTargetPos);
     }
-
+    
+    /// <summary>
+    /// What do you think this does?
+    /// </summary>
     public T? this[long x, long y]
     {
         get => Get(new Vec2Long(x, y));
-        set => Add(new Vec2Long(x, y), value ?? DefaultValue);
+        set => Set(new Vec2Long(x, y), value ?? DefaultValue);
     }
     
+    /// <summary>
+    /// What do you think this does?
+    /// </summary>
     public T? this[Vec2Long pos]
     {
         get => Get(pos);
-        set => Add(pos, value ?? DefaultValue);
+        set => Set(pos, value ?? DefaultValue);
     }
-
+    
     /// <summary>
-    /// Adds/sets a value in the matrix
+    /// What do you think this does?
     /// </summary>
-    /// <param name="targetPos">the position of the element to set, relative to this matrix</param>
-    /// <param name="value">the value to set</param>
-    /// <returns>a bool describing if the matrix was changed</returns>
-    internal override bool Add(Vec2Long targetPos, T value)
+    public T? this[Range2D range]
+    {
+        // get => throw new NotImplementedException();
+        set => Set(range, value ?? DefaultValue);
+    }
+    
+    internal override bool Set(Range2D targetRange, T value)
+    {
+        // if the range refers to a single point, use the Set(Vec2Long, T) method instead since it is more efficient for single positions
+        if (targetRange.GetArea() == 1)
+        {
+            return Set(new Vec2Long(targetRange.MinX, targetRange.MinY), value);
+        }
+        
+        var success = false;
+        
+        // for every subBlock,
+        for (var x = 0; x < _subBlockCount.X; x++)
+        {
+            for (var y = 0; y < _subBlockCount.Y; y++)
+            {
+                var subBlock = _subBlocks[x, y];
+                
+                var subBlockRange = subBlock.GetRange();
+
+                // check if the supplied targetRange overlaps with the subBlock.
+                if (targetRange.Overlaps(subBlockRange))
+                {
+                    var nextBlockAbsolutePos = AbsolutePos + (new Vec2Long(x, y) * _subBlockSize);
+
+                    // if the supplied targetRange completely contains the subBlock,
+                    if (targetRange.Contains(subBlockRange))
+                    {
+
+                        _subBlocks[x, y] =
+                            new BlockMatrixValue<T>(DefaultValue, nextBlockAbsolutePos, _subBlockSize, value);
+
+                        success = true;
+                        continue;
+                    }
+                    
+                    // otherwise, pass the call downwards:
+                    // if the subBlock is a BlockMatrixValue that is not fully contained within the targetRange,
+                    if (subBlock is BlockMatrixValue<T> subBlockValue && !targetRange.Contains(subBlock.GetRange()))
+                    {
+                        // split the BlockMatrixValue into a BlockMatrix,
+                        _subBlocks[x, y] = new BlockMatrix<T>(DefaultValue, _subBlockSize, nextBlockAbsolutePos, subBlockValue.GetValue());
+                        
+                        // and then pass the call downwards,
+                        success |= _subBlocks[x, y].Set(targetRange, value);
+                    }
+                    // otherwise, just pass the call downwards
+                    else
+                    {
+                        success |= _subBlocks[x, y].Set(targetRange, value);
+                    }
+                }
+            }
+        }
+        
+        // run a compression pass over everything that was/could have been changed
+        Compress();
+        
+        return success;
+    }
+    
+    internal override bool Set(Vec2Long targetPos, T value)
     {
         var nextBlockPos = GetNextBlockPos(targetPos, out var newTargetPos);
         var nextBlock = _subBlocks[nextBlockPos.X, nextBlockPos.Y] ?? throw new Exception("Block was null");
         
         var nextBlockAbsolutePos = AbsolutePos + (nextBlockPos * _subBlockSize);
         
-        // if part is a BlockMatrixValue of size 2+, change it to a BlockMatrix
-        if (nextBlock is BlockMatrixValue<T> nextBlock2 && _subBlockSize >= new Vec2Long(2))
+        // if part is a BlockMatrixValue of size > 1, change it to a BlockMatrix
+        if (nextBlock is BlockMatrixValue<T> nextBlockValue && _subBlockSize > new Vec2Long(1))
         {
-            // Console.WriteLine(BlockSize);
-            
-            var nextBlockValue = nextBlock2.GetValue();
-            
-            nextBlock = new BlockMatrix<T>(DefaultValue, _subBlockSize, nextBlockAbsolutePos, nextBlockValue);
+            nextBlock = new BlockMatrix<T>(DefaultValue, _subBlockSize, nextBlockAbsolutePos, nextBlockValue.GetValue());
             
             _subBlocks[nextBlockPos.X, nextBlockPos.Y] = nextBlock;
         }
         
         // recursively add the value
-        var success = nextBlock.Add(newTargetPos, value);
+        var success = nextBlock.Set(newTargetPos, value);
         
         // compression
-         
-        // for each subBlock,
-        for (var x = 0; x < _subBlockCount.X; x++)
-        {
-            for (var y = 0; y < _subBlockCount.Y; y++)
-            {
-                // if it is a BlockMatrix,
-                if (_subBlocks[x, y] is BlockMatrix<T> subBlockMatrix)
-                {
-                    // and all of its subBlocks are BlockMatrixValues,
-                    if (!subBlockMatrix._subBlocks.Cast<BlockMatrixBlock<T>?>()
-                            .Aggregate(true, (current, subSubBlock) => current & subSubBlock is BlockMatrixValue<T>))
-                        continue;
-                     
-                    // check if all of these subBlocks are equal
-                    if (subBlockMatrix._subBlocks.Cast<BlockMatrixValue<T>>().Distinct().Count() == 1)
-                    {
-                        // if so, replace the entire subBlock with a BlockMatrixValue of the correct size
-                        _subBlocks[x, y] = new BlockMatrixValue<T>(DefaultValue, nextBlockAbsolutePos, _subBlockSize, value);
-                    }
-                }
-            }
-        }
-        
-        // if we added something, the matrix will no longer be empty
-        if (success)
-            IsEmpty = false;
+        Compress();
         
         return success;
     }
     
-    /*/// <summary>
-    /// Removes a value in the matrix.
-    /// </summary>
-    /// <param name="targetPos">the position to remove the value at</param>
-    /// <returns>a bool describing if the matrix was changed</returns>
-    public override bool Remove(Vec2Long targetPos)
+    public override bool InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run, ResultComparison rc, bool excludeDefault = false)
     {
-        var success = false;
-        
-        // get the targetPos of the block the target is in
-        var blockPos = BlockMatrixUtil.GetBlockIndexFromPos(targetPos, BlockSize, _subBlockCount);
-        
-        // throw exception if the position is out of bounds
-        if (blockPos.X < 0 || blockPos.X > _subBlockCount.X || blockPos.Y < 0 || blockPos.Y > _subBlockCount.Y)
-            throw new Exception("Position " + targetPos + " is outside BlockMatrix bounds of +/- " + BlockSize.X + "x" + BlockSize.Y);
-    
-        GetNextBlockPos(targetPos, out var newTargetPos);
-        
-        // get the next block
-        var nextBlock = _subBlocks[blockPos.X, blockPos.Y];
-        
-        // if the block does not exist to begin with, nothing will change
-        if (nextBlock == null) return false;
-        
-        // if block is a BlockMatrix, pass the call downwards.
-        if (nextBlock.GetType() == typeof(BlockMatrix<T>))
-        {
-            success = nextBlock.Remove(newTargetPos);
-        }
-        
-        // otherwise, if the block is a BlockMatrixValue, remove it and flatten the matrix.
-        else if (nextBlock.GetType() == typeof(BlockMatrixValue<T>))
-        {
-            //TODO: compression/removal
-            
-            success = true;
-        }
-    
-        // update the IsEmpty flag if something changed
-        if (success)
-            IsEmpty = CheckEmpty();
-        
-        return success;
-    }*/
-
-    public override bool All(Func<T, Vec2Long, bool> lambda)
-    {
-        return _subBlocks.OfType<BlockMatrixBlock<T>>().Aggregate(
-            true,
-            (current, subBlock) => current & subBlock.All(lambda));
-    }
-    
-    public override bool Any(Func<T, Vec2Long, bool> lambda)
-    {
-        return _subBlocks.OfType<BlockMatrixBlock<T>>().Aggregate(
-            false,
-            (current, subBlock) => current | subBlock.All(lambda));
-    }
-
-    public override bool? InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run, Func<bool?, bool?, bool> resultComparison, bool resultStart)
-    {
-        var retVal = resultStart;
+        var retVal = rc.StartingValue;
         
         foreach (var subBlock in _subBlocks)
         {
-            if (subBlock.IsEmpty) continue; // if the subBlock is empty, continue
-            
             var subBlockRect = new Range2D(
                 subBlock.AbsolutePos.X, 
                 subBlock.AbsolutePos.Y, 
@@ -295,14 +286,15 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : EqualityComparer<T
             
             if (range.Overlaps(subBlockRect))
             {
-                retVal = resultComparison.Invoke(retVal, subBlock.InvokeRanged(range, run, resultComparison, resultStart));
+                retVal = rc.Comparator
+                    .Invoke(retVal, subBlock.InvokeRanged(range, run, rc, excludeDefault));
             }
             
         }
 
         return retVal;
     }
-
+    
     private Vec2Long GetNextBlockPos(Vec2Long targetPos, out Vec2Long newTargetPos)
     {
         // get the targetPos of the block the target is in
@@ -319,7 +311,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : EqualityComparer<T
 
         return blockPos;
     }
-
+    
     public override StringBuilder GetSvgMap(StringBuilder? nullableSvgString = null)
     {
         const double scale = GameConstants.BlockMatrixSvgScale;
@@ -345,11 +337,60 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : EqualityComparer<T
         // pass the call downwards
         foreach (var subBlock in _subBlocks)
         {
-            subBlock.GetSvgMap(svgString);
+            svgString = subBlock.GetSvgMap(svgString);
         }
         
         return svgString;
 
+    }
+    
+    private void Compress()
+    {
+        // for each subBlock,
+        for (var x = 0; x < _subBlockCount.X; x++)
+        {
+            for (var y = 0; y < _subBlockCount.Y; y++)
+            {
+                // get absolute pos of this block
+                var currentBlockAbsolutePos = AbsolutePos + new Vec2Long(x, y) * _subBlockSize;
+                
+                // if it is a BlockMatrix,
+                if (_subBlocks[x, y] is BlockMatrix<T> subBlockMatrix)
+                {
+                    var subSubBlocks = subBlockMatrix._subBlocks;
+
+                    var firstValue = subSubBlocks[0, 0] is BlockMatrixValue<T> e ? e.GetValue() : null;
+                    
+                    if (firstValue == null)
+                        continue;
+                    
+                    // check if all of these subBlocks are equal
+                    var allEqual = true;
+                    foreach (var subSubBlock in subSubBlocks)
+                    {
+                        if (subSubBlock is not BlockMatrixValue<T> subSubBlockValue)
+                        {
+                            allEqual = false;
+                            break;
+                        }
+                            
+                        allEqual &= subSubBlockValue.GetValue().Equals(firstValue);
+
+                        if (!allEqual)
+                        {
+                            break;
+                        }
+                    }
+                    
+                    // if so,
+                    if (allEqual)
+                    {
+                        //replace the entire subBlock with a BlockMatrixValue of the correct size
+                        _subBlocks[x, y] = new BlockMatrixValue<T>(DefaultValue, currentBlockAbsolutePos, _subBlockSize, firstValue);
+                    }
+                }
+            }
+        }
     }
     
     
@@ -364,7 +405,7 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T> where T : EqualityCompa
         _value = value;
     }
 
-    internal override bool Add(Vec2Long targetPos, T? value)
+    internal override bool Set(Vec2Long targetPos, T? value)
     {
         if (value == null)
             return false;
@@ -372,47 +413,66 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T> where T : EqualityCompa
         _value = value;
         return true;
     }
+    
+    internal override bool Set(Range2D targetRange, T? value)
+    {
+        if (value == null)
+            return false;
 
-    internal override T Get(Vec2Long targetPos = default)
+        if (targetRange.Contains(GetRange()))
+        {
+            _value = value;
+            return true;
+        }
+        
+        return false;
+    }
+
+    internal override T Get(Vec2Long targetPos)
     {
         return _value;
     }
-
-    public override bool All(Func<T, Vec2Long, bool> lambda)
-    {
-        return Invoke(lambda);
-    }
     
-    public override bool Any(Func<T, Vec2Long, bool> lambda)
+    public override bool InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run, ResultComparison rc, bool excludeDefault = false)
     {
-        return Invoke(lambda);
-    }
-
-    private bool Invoke(Func<T, Vec2Long, bool> lambda)
-    {
-        return lambda.Invoke(_value, AbsolutePos);
-    }
-    
-    public override bool? InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run, Func<bool?, bool?, bool> resultComparison, bool resultStart)
-    {
+        if (excludeDefault && _value == DefaultValue) return false;
         
-        var subBlockRect = new Range2D(
+        // get the Range2D of this BlockMatrixValue
+        var blockRange = new Range2D(
             AbsolutePos.X,
             AbsolutePos.Y, 
             AbsolutePos.X + BlockSize.X, 
             AbsolutePos.Y + BlockSize.Y);
         
-        if (range.Overlaps(subBlockRect))
+        // if the supplied range overlaps with subBlockRange,
+        if (range.Overlaps(blockRange))
         {
-            return run.Invoke(_value, AbsolutePos);
+            // get the overlap rectangle of this BlockMatrixValue, and the supplied range
+            var overlap = range.Overlap(blockRange);
+            
+            // invoke the run Func for every discrete position in the overlap
+
+            var result = rc.StartingValue;
+            
+            for (var x = overlap.MinX; x < overlap.MaxX; x++)
+            {
+                for (var y = overlap.MinY; y < overlap.MaxY; y++)
+                {
+                    result = rc.Comparator.Invoke(
+                        result,
+                        run.Invoke(_value, new Vec2Long(x, y))
+                        );
+                }
+            }
+            
+            return result;
         }
         
-        return null;
+        return false;
     }
     
     public override StringBuilder GetSvgMap(StringBuilder? nullableSvgString = null)
     {
-        
         const double scale = GameConstants.BlockMatrixSvgScale;
 
         var svgString = nullableSvgString ?? new StringBuilder(
@@ -429,14 +489,12 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T> where T : EqualityCompa
         
         var fillColor = "#00ff00";
 
-        if (_value == DefaultValue) fillColor = "#ff0000;fill-opacity:0.1";
         if (BlockSize == new Vec2Long(1)) fillColor = "#ffff00";
-        
+        if (_value == DefaultValue) fillColor = "#ff0000;fill-opacity:0.1";
+
         var rect = $"<rect style=\"fill:{fillColor};stroke:#000000;stroke-width:{Math.Min(BlockSize.X / 64d, 1)}\" " +
                    $"width=\"{BlockSize.X * scale}\" height=\"{BlockSize.Y * scale}\" " +
                    $"x=\"{AbsolutePos.X * scale}\" y=\"{AbsolutePos.Y * scale}\"/>";
-        
-        // Console.WriteLine(AbsolutePos + " => " + fillColor);
         
         svgString.Insert(svgString.Length-6, rect);
 
@@ -515,27 +573,27 @@ internal static class BlockMatrixUtil
     
 }
 
-internal static class ResultComparison
+public static class ResultComparisons
 {
-    public static readonly Func<bool?, bool?, bool> Or = (a, b) =>
-    {
-        if (a == null && b == null) return false;
-        if (a == null && b != null) return (bool)b;
-        if (a != null && b == null) return (bool)a;
-        if (a != null && b != null) return (bool)a | (bool)b;
-        
-        return false;
-    };
-    
-    public static readonly  Func<bool?, bool?, bool> And = (a, b) =>
-    {
-        if (a == null && b == null) return false;
-        if (a == null && b != null) return (bool)b;
-        if (a != null && b == null) return (bool)a;
-        if (a != null && b != null) return (bool)a & (bool)b;
-        
-        return false;
-    };
-    
-    
+    public static readonly ResultComparison Or = new ResultComparisonOr();
+    public static readonly ResultComparison And = new ResultComparisonAnd();
+}
+
+public abstract class ResultComparison
+{
+    public abstract Func<bool, bool, bool> Comparator { get; }
+    public abstract bool StartingValue { get; }
+
+}
+
+public class ResultComparisonOr : ResultComparison
+{
+    public override Func<bool, bool, bool> Comparator => (a, b) => a || b;
+    public override bool StartingValue => false;
+}
+
+public class ResultComparisonAnd : ResultComparison
+{
+    public override Func<bool, bool, bool> Comparator => (a, b) => a && b;
+    public override bool StartingValue => true;
 }

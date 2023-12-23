@@ -31,7 +31,7 @@ public class Value
     public static Value operator +(Value value1, Value value2)
     {
         if (value1._unit != value2._unit)
-            Util.ConsoleWarn($"Unit {value1._unit} and {value2._unit} are being added, but are not the same");
+            Util.Warn($"Unit {value1._unit} and {value2._unit} are being added, but are not the same");
         
         value1._value += value2._value;
         return value1;
@@ -39,7 +39,7 @@ public class Value
     public static Value operator -(Value value1, Value value2)
     {
         if (value1._unit != value2._unit)
-            Util.ConsoleWarn($"Unit {value1._unit} and {value2._unit} are being added, but are not the same");
+            Util.Warn($"Unit {value1._unit} and {value2._unit} are being added, but are not the same");
 
         value1._value -= value2._value;
         return value1;
