@@ -3,3 +3,5 @@ obj/
 /.config/
 /AppImages/
 appimagetool*
+*.mgstats
+*.mgcontent
