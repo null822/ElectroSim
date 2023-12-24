@@ -7,6 +7,7 @@ using ElectroSim.Content;
 using ElectroSim.Gui;
 using ElectroSim.Gui.MenuElements;
 using ElectroSim.Maths;
+using ElectroSim.Maths.BlockMatrix;
 using ElectroSim.Maths.Text;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
@@ -26,8 +27,8 @@ public class MainWindow : Game
     private static SpriteBatch _spriteBatch;
 
     // world/ui
-    // private readonly BlockMatrix<Component> _components = new(Registry.Components.Empty, new Vec2Long(4611686018427387904, 4611686018427387904));
-    private readonly BlockMatrix<Component> _components = new(Registry.Components.Empty, new Vec2Long(65536, 65536));
+    private readonly BlockMatrix<Component> _components = new(Registry.Components.Empty, new Vec2Long(4611686018427387904, 4611686018427387904));
+    // private readonly BlockMatrix<Component> _components = new(Registry.Components.Empty, new Vec2Long(65536, 65536));
     private readonly List<Menu> _menus = new();
     
     // world editing
@@ -184,14 +185,20 @@ public class MainWindow : Game
 
         if (keyboardState.IsKeyDown(Keys.Enter) && !_prevKeyboardState.IsKeyDown(Keys.Enter))
         {
-            
             var svgMap = _components.GetSvgMap().ToString();
             
-            var file = File.Create("BlockMatrixMap.svg");
-            file.Write(Encoding.ASCII.GetBytes(svgMap));
-            file.Close();
+            var map = File.Create("BlockMatrixMap.svg");
+            map.Write(Encoding.ASCII.GetBytes(svgMap));
+            map.Close();
             
-            Log("BlockMatrix Dumped");
+            Log("BlockMatrix Map Saved");
+
+            var save = File.Create("save.bm");
+
+            _components.Serialize(save);
+
+            save.Close();
+            Log("BlockMatrix Saved");
         }
 
         var mouseScreenCords = new Vec2Int(mouseState.X, mouseState.Y);

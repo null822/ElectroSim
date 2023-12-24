@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using ElectroSim.Maths;
+using ElectroSim.Maths.BlockMatrix;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -9,8 +9,9 @@ namespace ElectroSim.Content;
 /// <summary>
 /// The parent class of all components.
 /// </summary>
-public class Component : EqualityComparer<Component>
+public class Component : IBlockMatrixElement<Component>
 {
+    
     private Vec2Long _pos;
     private readonly string _texture;
 
@@ -131,25 +132,19 @@ public class Component : EqualityComparer<Component>
     
     // overrides
     
-    public static bool operator ==(Component a, Component b)
+    static bool IBlockMatrixElement<Component>.operator ==(Component a, Component b)
     {
-        if (object.Equals(a, null) || object.Equals(b, null))
-            return false;
-
-        return a.Details.ToString() == b.Details.ToString();
+        
+        return b != null && a != null && a.Details.ToString() == b.Details.ToString();
     }
     
-    public static bool operator !=(Component a, Component b)
+    static bool IBlockMatrixElement<Component>.operator !=(Component a, Component b)
     {
-        if (object.Equals(a, null) || object.Equals(b, null))
-            return true;
-
-        return a.Details != b.Details;
+        return b != null && a != null && a.Details.ToString() != b.Details.ToString();
     }
-
-    public bool Equals(Component other)
+    
+    private bool Equals(Component other)
     {
-        if (Equals(other, null)) return false;
         return Equals(Details, other.Details);
     }
 
@@ -157,7 +152,7 @@ public class Component : EqualityComparer<Component>
     {
         if (ReferenceEquals(null, obj)) return false;
         if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != this.GetType()) return false;
+        if (obj.GetType() != GetType()) return false;
         return Equals((Component)obj);
     }
 
@@ -165,19 +160,11 @@ public class Component : EqualityComparer<Component>
     {
         return HashCode.Combine(Details);
     }
-
-    public override bool Equals(Component a, Component b)
+    
+    public ReadOnlySpan<byte> Serialize()
     {
-        return a == b;
+        return BitConverter.GetBytes(254);
     }
 
-    public override int GetHashCode(Component obj)
-    {
-        return HashCode.Combine(obj.Details);
-    }
-
-    public override string ToString()
-    {
-        return Details.ToString();
-    }
+    public static long SerializeLength { get; } = 1;
 }

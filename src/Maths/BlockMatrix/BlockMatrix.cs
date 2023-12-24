@@ -1,12 +1,12 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Text;
 
-namespace ElectroSim.Maths;
+namespace ElectroSim.Maths.BlockMatrix;
 
-internal class BlockMatrixBlock<T> where T : EqualityComparer<T>
+internal abstract class BlockMatrixBlock<T> where T : class, IBlockMatrixElement<T>
 {
     /// <summary>
     /// Absolute position of the BlockMatrixBlock
@@ -36,32 +36,23 @@ internal class BlockMatrixBlock<T> where T : EqualityComparer<T>
     /// <param name="targetPos">the position of the value to set, relative to the BlockMatrix called in</param>
     /// <param name="value">the value to set</param>
     /// <returns>a bool describing if the BlockMatrix was changed (ignoring compression)</returns>
-    internal virtual bool Set(Vec2Long targetPos, T value)
-    {
-        return false;
-    }
-    
+    internal abstract bool Set(Vec2Long targetPos, T value);
+
     /// <summary>
     /// Sets an area of values to one single value in the BlockMatrix
     /// </summary>
     /// <param name="targetRange">the area of values to set, relative to the BlockMatrix called in</param>
     /// <param name="value">the value to set</param>
     /// <returns>a bool describing if the BlockMatrix was changed (ignoring compression)</returns>
-    internal virtual bool Set(Range2D targetRange, T value)
-    {
-        return false;
-    }
-    
+    internal abstract bool Set(Range2D targetRange, T value);
+
     /// <summary>
     /// Gets a value from the BlockMatrix
     /// </summary>
     /// <param name="targetPos"></param>
     /// <returns></returns>
-    internal virtual T? Get(Vec2Long targetPos)
-    {
-        return default;
-    }
-    
+    internal abstract T? Get(Vec2Long targetPos);
+
     /// <summary>
     /// Runs the specified lambda for each element residing in the supplied range
     /// </summary>
@@ -70,20 +61,31 @@ internal class BlockMatrixBlock<T> where T : EqualityComparer<T>
     /// <param name="rc">a ResultComparison to compare the results</param>
     /// <param name="excludeDefault">whether to exclude all elements with the default value</param>
     /// <returns>the result of comparing all of the results of the run lambdas</returns>
-    public virtual bool InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run,
-        ResultComparison rc, bool excludeDefault = false)
-    {
-        return false;
-    }
+    public abstract bool InvokeRanged(Range2D range, Func<T, Vec2Long, bool> run,
+        ResultComparison rc, bool excludeDefault = false);
 
     /// <summary>
     /// Creates an SVG representing the current structure of the entire BlockMatrix
     /// </summary>
     /// <param name="nullableSvgString">optional parameter, used internally to pass the SVG around. Will likely break if changed.</param>
     /// <returns>the contents of an SVG file, ready to be saved</returns>
-    public virtual StringBuilder GetSvgMap(StringBuilder? nullableSvgString = null)
+    public abstract StringBuilder GetSvgMap(StringBuilder? nullableSvgString = null);
+
+    /// <summary>
+    /// Serializes the BlockMatrixBlock. See:
+    /// <code>src/BlockMatrix Format.md</code>
+    /// </summary>
+    /// <param name="tree">an empty stream to which the tree section will be written to</param>
+    /// <param name="data">an empty stream to which the data section will be written to</param>
+    internal virtual void SerializeBlockMatrix(Stream tree, Stream data)
     {
-        return new StringBuilder();
+        // write the AbsolutePos,
+        tree.Write(BitConverter.GetBytes(AbsolutePos.X));
+        tree.Write(BitConverter.GetBytes(AbsolutePos.Y));
+        
+        // and BlockSize to the tree
+        tree.Write(BitConverter.GetBytes(BlockSize.X));
+        tree.Write(BitConverter.GetBytes(BlockSize.Y));
     }
 
     /// <summary>
@@ -101,8 +103,7 @@ internal class BlockMatrixBlock<T> where T : EqualityComparer<T>
     
 }
 
-
-internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : EqualityComparer<T>
+internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : class, IBlockMatrixElement<T>
 {
     /// <summary>
     /// 2D Array containing all of the sub-blocks
@@ -343,7 +344,80 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : EqualityComparer<T
         return svgString;
 
     }
-    
+
+    /// <summary>
+    /// Serializes the BlockMatrix into a format described in:
+    /// <code>src/BlockMatrix Format.md</code>
+    /// <param name="stream">the stream to write to</param>
+    /// </summary>
+    public void Serialize(Stream stream)
+    {
+        // initialize the tree and data streams as MemoryStreams
+        var treeStream = new MemoryStream();
+        var dataStream = new MemoryStream();
+
+        // serialize the current BlockMatrix
+        SerializeBlockMatrix(treeStream, dataStream);
+
+        // reset stream positions
+        treeStream.Position = 0;
+        dataStream.Position = 0;
+        
+        // get length of the tree/data streams
+        var treeLen = treeStream.Length;
+        var dataLen = dataStream.Length;
+
+        
+        // write the header to the stream
+
+        // add contents to the header
+        stream.Write(BitConverter.GetBytes(BlockSize.X)); // width
+        stream.Write(BitConverter.GetBytes(BlockSize.Y)); // width
+        stream.Write(BitConverter.GetBytes(T.SerializeLength)); // element size (bytes)
+        stream.Write(BitConverter.GetBytes(treeStream.Length + 32)); // pointer to the start of the data section
+        
+        
+        // write the tree/data sections to the stream and dispose all the variables that we can
+
+        var tree = new Span<byte>(new byte[treeStream.Length]);
+        var treeRead = treeStream.Read(tree);
+        treeStream.Dispose();
+        stream.Write(tree);
+        tree.Clear();
+
+        var data = new Span<byte>(new byte[dataStream.Length]);
+        var dataRead = dataStream.Read(data);
+        dataStream.Dispose();
+        stream.Write(data);
+        data.Clear();
+
+        if (treeRead != treeLen)
+            Util.Error($"Tree Section was not fully saved ({treeRead}/{treeStream.Length} bytes written)");
+
+        if (dataRead != dataLen)
+            Util.Error($"Data Section was not fully saved ({dataRead}/{dataStream.Length} bytes written)");
+        
+    }
+
+
+    internal override void SerializeBlockMatrix(Stream tree, Stream data)
+    {
+        // write the identifier for a BlockMatrix to the tree stream
+        tree.Write(new byte[]{ 1 });
+        
+        // write the default data for a BlockMatrixBlock to the tree stream
+        base.SerializeBlockMatrix(tree, data);
+        
+        // pass the call downwards, causing everything to be serialized in the correct order
+        foreach (var subBlock in _subBlocks)
+        {
+            subBlock.SerializeBlockMatrix(tree, data);
+        }
+        
+        // write the identifier for the end of the BlockMatrix to the tree stream
+        tree.Write(new byte[]{ 1 });
+    }
+
     private void Compress()
     {
         // for each subBlock,
@@ -396,7 +470,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : EqualityComparer<T
     
 }
 
-internal class BlockMatrixValue<T> : BlockMatrixBlock<T> where T : EqualityComparer<T>
+internal class BlockMatrixValue<T> : BlockMatrixBlock<T> where T : class, IBlockMatrixElement<T>
 {
     private T _value;
     
@@ -500,6 +574,22 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T> where T : EqualityCompa
 
         return svgString;
     }
+    
+    internal override void SerializeBlockMatrix(Stream tree, Stream data)
+    {
+        // write the identifier for a BlockMatrixValue to the tree stream
+        tree.Write(new byte[] { 2 });
+        
+        // write the default data for a BlockMatrixBlock to the tree stream
+        base.SerializeBlockMatrix(tree, data);
+
+        // write, and get the pointer of, the value in the data stream
+        var pointer = (int)data.Position / T.SerializeLength;
+        data.Write(_value.Serialize());
+        
+        // write the pointer of the value to the tree stream
+        tree.Write(BitConverter.GetBytes(pointer));
+    }
 
     public Vec2Long GetPos()
     {
@@ -512,8 +602,6 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T> where T : EqualityCompa
     }
     
     // overrides
-    
-    
     public static bool operator ==(BlockMatrixValue<T> a, BlockMatrixValue<T> b)
     {
         if (Equals(a, null) || Equals(b, null))

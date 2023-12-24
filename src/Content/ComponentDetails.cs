@@ -46,7 +46,7 @@ public class ComponentDetails
     /// <param name="propertyName">The property to get the value of</param>
     public Value GetPropertyValue(PropertyType propertyName)
     {
-        return _properties.TryGetValue(propertyName, out var value) ? value : null;
+        return _properties.GetValueOrDefault(propertyName);
     }
 
     public override string ToString()
