@@ -1,4 +1,5 @@
 # Building Instructions
+ - all build-related files are in the build folder
 # Prerequisites
 - .NET 8.0 SDK
 - Visual Studio Code/vscode/VSCodium (optional)
