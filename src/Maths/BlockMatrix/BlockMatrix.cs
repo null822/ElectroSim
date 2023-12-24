@@ -73,7 +73,7 @@ internal abstract class BlockMatrixBlock<T> where T : class, IBlockMatrixElement
 
     /// <summary>
     /// Serializes the BlockMatrixBlock. See:
-    /// <code>src/BlockMatrix Format.md</code>
+    /// <code>src/BlockMatrix-Format.md</code>
     /// </summary>
     /// <param name="tree">an empty stream to which the tree section will be written to</param>
     /// <param name="data">an empty stream to which the data section will be written to</param>
@@ -347,7 +347,7 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : class, IBlockMatri
 
     /// <summary>
     /// Serializes the BlockMatrix into a format described in:
-    /// <code>src/BlockMatrix Format.md</code>
+    /// <code>src/BlockMatrix-Format.md</code>
     /// <param name="stream">the stream to write to</param>
     /// </summary>
     public void Serialize(Stream stream)
