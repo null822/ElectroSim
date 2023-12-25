@@ -1,4 +1,4 @@
 dotnet build ^
-../ElectroSim.csproj
+../ElectroSim.csproj ^
 -r win-x64 ^
 --self-contained

@@ -1,6 +1,6 @@
 #!/bin/bash
 dotnet publish \
-../ElectroSim.csproj
+../ElectroSim.csproj \
 /p:DebugType=none \
 /p:DebugSymbols=false \
 -r linux-x64 \
