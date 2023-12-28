@@ -2,6 +2,9 @@
 
 public static class GameConstants
 {
+    public const long WorldWidth = 65536;
+    public const long WorldHeight = 65536;
+    
     public const int MinComponentSize = 8;
 
     public const int MenuBackgroundTileSize = 8;

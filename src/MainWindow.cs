@@ -9,6 +9,7 @@ using ElectroSim.Gui.MenuElements;
 using ElectroSim.Maths;
 using ElectroSim.Maths.BlockMatrix;
 using ElectroSim.Maths.Text;
+using Microsoft.VisualBasic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -16,6 +17,7 @@ using MonoGame.Extended;
 using MonoGame.Extended.BitmapFonts;
 using Component = ElectroSim.Content.Component;
 using static ElectroSim.Util;
+using static ElectroSim.GameConstants;
 
 namespace ElectroSim;
 
@@ -27,8 +29,7 @@ public class MainWindow : Game
     private static SpriteBatch _spriteBatch;
 
     // world/ui
-    private readonly BlockMatrix<Component> _components = new(Registry.Components.Empty, new Vec2Long(4611686018427387904, 4611686018427387904));
-    // private readonly BlockMatrix<Component> _components = new(Registry.Components.Empty, new Vec2Long(65536, 65536));
+    private BlockMatrix<Component> _components = new(Registry.Components.Empty, new Vec2Long(WorldWidth, WorldHeight));
     private readonly List<Menu> _menus = new();
     
     // world editing
@@ -183,7 +184,7 @@ public class MainWindow : Game
         var keyboardState = Keyboard.GetState();
         var mouseState = Mouse.GetState();
 
-        if (keyboardState.IsKeyDown(Keys.Enter) && !_prevKeyboardState.IsKeyDown(Keys.Enter))
+        if (keyboardState.IsKeyDown(Keys.M) && !_prevKeyboardState.IsKeyDown(Keys.M))
         {
             var svgMap = _components.GetSvgMap().ToString();
             
@@ -192,7 +193,9 @@ public class MainWindow : Game
             map.Close();
             
             Log("BlockMatrix Map Saved");
-
+        }
+        if (keyboardState.IsKeyDown(Keys.S) && !_prevKeyboardState.IsKeyDown(Keys.S))
+        {
             var save = File.Create("save.bm");
 
             _components.Serialize(save);
@@ -200,9 +203,27 @@ public class MainWindow : Game
             save.Close();
             Log("BlockMatrix Saved");
         }
+        if (keyboardState.IsKeyDown(Keys.L) && !_prevKeyboardState.IsKeyDown(Keys.L))
+        {
+            var save = File.Open("save.bm", FileMode.Open);
 
+            _components = BlockMatrix<Component>.Deserialize(save);
+            
+            save.Close();
+            Log("BlockMatrix Loaded");
+
+        }
+        if (keyboardState.IsKeyDown(Keys.C) && !_prevKeyboardState.IsKeyDown(Keys.C))
+        {
+            _components = new BlockMatrix<Component>(
+                Registry.Components.Empty,
+                new Vec2Long(WorldWidth, WorldHeight));
+            
+            Log("World Cleared");
+        }
+        
         var mouseScreenCords = new Vec2Int(mouseState.X, mouseState.Y);
-
+        
         const int min = 1000;
         const int max = 4000;
 

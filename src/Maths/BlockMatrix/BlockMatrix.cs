@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using static ElectroSim.Maths.BlockMatrix.BlockMatrixUtil;
 
 namespace ElectroSim.Maths.BlockMatrix;
 
@@ -72,20 +73,39 @@ internal abstract class BlockMatrixBlock<T> where T : class, IBlockMatrixElement
     public abstract StringBuilder GetSvgMap(StringBuilder? nullableSvgString = null);
 
     /// <summary>
-    /// Serializes the BlockMatrixBlock. See:
+    /// Deserializes a serialized BlockMatrixBlock. See:
     /// <code>src/BlockMatrix-Format.md</code>
     /// </summary>
-    /// <param name="tree">an empty stream to which the tree section will be written to</param>
-    /// <param name="data">an empty stream to which the data section will be written to</param>
-    internal virtual void SerializeBlockMatrix(Stream tree, Stream data)
+    /// <param name="tree">a stream containing the tree section</param>
+    /// <param name="data">a stream containing the data section</param>
+    internal virtual void DeserializeBlockMatrix(Stream tree, Stream data)
     {
-        // write the AbsolutePos,
-        tree.Write(BitConverter.GetBytes(AbsolutePos.X));
-        tree.Write(BitConverter.GetBytes(AbsolutePos.Y));
+        // // write the AbsolutePos,
+        // tree.Write(BitConverter.GetBytes(AbsolutePos.X));
+        // tree.Write(BitConverter.GetBytes(AbsolutePos.Y));
+        //
+        // // and BlockSize to the tree
+        // tree.Write(BitConverter.GetBytes(BlockSize.X));
+        // tree.Write(BitConverter.GetBytes(BlockSize.Y));
+    }
+
+    /// <summary>
+    /// Deserializes a serialized BlockMatrixBlock. See:
+    /// <code>src/BlockMatrix-Format.md</code>
+    /// </summary>
+    /// <param name="tree">a stream containing the tree section</param>
+    /// <param name="data">a stream containing the data section</param>
+    /// <param name="index">the index within _subBlocks of the element to serialize</param>
+    internal virtual void SerializeBlockMatrix(Stream tree, Stream data, Vec2Long index)
+    {
+        // write the index,
+        tree.Write(BitConverter.GetBytes((uint)index.X));
+        tree.Write(BitConverter.GetBytes((uint)index.Y));
         
-        // and BlockSize to the tree
+        /*// and BlockSize, to the tree
         tree.Write(BitConverter.GetBytes(BlockSize.X));
-        tree.Write(BitConverter.GetBytes(BlockSize.Y));
+        tree.Write(BitConverter.GetBytes(BlockSize.Y));*/
+        
     }
 
     /// <summary>
@@ -124,27 +144,27 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : class, IBlockMatri
     public BlockMatrix(T defaultValue, Vec2Long blockSize, Vec2Long? blockAbsolutePos = null, T? populateValue = null) : base(defaultValue, blockAbsolutePos, blockSize)
     {
         // calculate largest W/H factors
-        var wLargestFactor = BlockMatrixUtil.LargestFactor(blockSize.X);
-        var hLargestFactor = BlockMatrixUtil.LargestFactor(blockSize.Y);
+        var wLargestFactor = LargestFactor(blockSize.X);
+        var hLargestFactor = LargestFactor(blockSize.Y);
         
         // instantiate _subBlockSize to be as large as possible, but smaller than the matrix, while keeping the matrix size divisible by it
         _subBlockSize = new Vec2Long(wLargestFactor, hLargestFactor);
         
         // instantiate _subBlocks to be of size: smallest non-1 (unless matrix size is prime) factor of passed size.
         // also store this value in a field for later use
-        _subBlockCount = new Vec2Long(blockSize.X / wLargestFactor, blockSize.X / hLargestFactor);
-        _subBlocks = new BlockMatrixBlock<T>[_subBlockCount.X, _subBlockCount.X];
+        _subBlockCount = new Vec2Long(blockSize.X / wLargestFactor, blockSize.Y / hLargestFactor);
+        _subBlocks = new BlockMatrixBlock<T>[_subBlockCount.X, _subBlockCount.Y];
         
-        // populate the _subBlocks array with either the defaultValue or a supplied populateValue if present
+        // populate the _subBlocks array with either the defaultValue or the supplied populateValue if it is not null
         var value = populateValue ?? defaultValue;
-
+        
         for (var x = 0; x < _subBlockCount.X; x++)
         {
             for (var y = 0; y < _subBlockCount.Y; y++)
             {
-                var nextBlockAbsolutePos = AbsolutePos + new Vec2Long(x, y) * _subBlockSize;
+                var subBlockAbsolutePos = AbsolutePos + new Vec2Long(x, y) * _subBlockSize;
                 
-                _subBlocks[x, y] = new BlockMatrixValue<T>(defaultValue, nextBlockAbsolutePos, _subBlockSize, value);
+                _subBlocks[x, y] = new BlockMatrixValue<T>(defaultValue, subBlockAbsolutePos, _subBlockSize, value);
             }
         }
     }
@@ -353,69 +373,173 @@ internal class BlockMatrix<T> : BlockMatrixBlock<T> where T : class, IBlockMatri
     public void Serialize(Stream stream)
     {
         // initialize the tree and data streams as MemoryStreams
-        var treeStream = new MemoryStream();
-        var dataStream = new MemoryStream();
-
-        // serialize the current BlockMatrix
-        SerializeBlockMatrix(treeStream, dataStream);
-
-        // reset stream positions
-        treeStream.Position = 0;
-        dataStream.Position = 0;
+        var tree = new MemoryStream();
+        var data = new MemoryStream();
         
-        // get length of the tree/data streams
-        var treeLen = treeStream.Length;
-        var dataLen = dataStream.Length;
+        // write the DefaultValue into the first position of the data stream
+        data.Write(DefaultValue.Serialize());
 
+        // serialize the entire BlockMatrix, skipping the root block (serialize the subBlocks of the root block)
+        for (var x = 0; x < _subBlockCount.X; x++)
+        {
+            for (var y = 0; y < _subBlockCount.Y; y++)
+            {
+                _subBlocks[x, y].SerializeBlockMatrix(tree, data, new Vec2Long(x, y));
+            }
+        }
         
-        // write the header to the stream
-
-        // add contents to the header
+        // write the header values to the output stream
         stream.Write(BitConverter.GetBytes(BlockSize.X)); // width
         stream.Write(BitConverter.GetBytes(BlockSize.Y)); // width
         stream.Write(BitConverter.GetBytes(T.SerializeLength)); // element size (bytes)
-        stream.Write(BitConverter.GetBytes(treeStream.Length + 32)); // pointer to the start of the data section
+        stream.Write(BitConverter.GetBytes((uint)(tree.Length + 24))); // pointer to the start of the data section
         
+        // reset tree/data stream positions
+        tree.Position = 0;
+        data.Position = 0;
         
-        // write the tree/data sections to the stream and dispose all the variables that we can
-
-        var tree = new Span<byte>(new byte[treeStream.Length]);
-        var treeRead = treeStream.Read(tree);
-        treeStream.Dispose();
-        stream.Write(tree);
-        tree.Clear();
-
-        var data = new Span<byte>(new byte[dataStream.Length]);
-        var dataRead = dataStream.Read(data);
-        dataStream.Dispose();
-        stream.Write(data);
-        data.Clear();
-
-        if (treeRead != treeLen)
-            Util.Error($"Tree Section was not fully saved ({treeRead}/{treeStream.Length} bytes written)");
-
-        if (dataRead != dataLen)
-            Util.Error($"Data Section was not fully saved ({dataRead}/{dataStream.Length} bytes written)");
+        // write the tree/data sections to the output stream
+        tree.WriteTo(stream);
+        data.WriteTo(stream);
         
+        // dispose the original streams
+        tree.Dispose();
+        data.Dispose();
     }
-
-
-    internal override void SerializeBlockMatrix(Stream tree, Stream data)
+    
+    internal override void SerializeBlockMatrix(Stream tree, Stream data, Vec2Long index)
     {
         // write the identifier for a BlockMatrix to the tree stream
         tree.Write(new byte[]{ 1 });
         
         // write the default data for a BlockMatrixBlock to the tree stream
-        base.SerializeBlockMatrix(tree, data);
+        base.SerializeBlockMatrix(tree, data, index);
         
-        // pass the call downwards, causing everything to be serialized in the correct order
-        foreach (var subBlock in _subBlocks)
+        // pass the call downwards, causing everything to be serialized in order
+        for (var x = 0; x < _subBlockCount.X; x++)
         {
-            subBlock.SerializeBlockMatrix(tree, data);
+            for (var y = 0; y < _subBlockCount.Y; y++)
+            {
+                _subBlocks[x, y].SerializeBlockMatrix(tree, data, new Vec2Long(x, y));
+            }
         }
         
         // write the identifier for the end of the BlockMatrix to the tree stream
-        tree.Write(new byte[]{ 1 });
+        tree.Write(new byte[]{ 0 });
+    }
+    
+    /// <summary>
+    /// Deserializes the supplied stream into a BlockMatrix and returns it
+    /// </summary>
+    /// <param name="stream">the stream containing the serialized BlockMatrix</param>
+    /// <returns>the deserialized BlockMatrix</returns>
+    public static BlockMatrix<T> Deserialize(Stream stream)
+    {
+        // get the header
+        var header = ReadStream(stream, 24, "header");
+        
+        // get values from the header
+        var blockSize = new Vec2Long(BitConverter.ToInt64(header[..8]), BitConverter.ToInt64(header[8..16]));
+        var elementSize = BitConverter.ToUInt32(header[16..20]);
+        var dataPointer = BitConverter.ToUInt32(header[20..24]);
+        
+        // warn if the element sizes do not match
+        if (elementSize != T.SerializeLength)
+            Util.Warn($"Element Sizes do not match! File contains element size of {elementSize} " +
+                      $"but is being deserialized with element size of {T.SerializeLength}.");
+        
+        // read the tree and data sections from the stream
+        var treeSpan = ReadStream(stream, dataPointer - 24, "tree section");
+        var dataSpan = ReadStream(stream, stream.Length - dataPointer, "data section");
+        
+        // create streams for the sections
+        var tree = new MemoryStream();
+        var data = new MemoryStream();
+        
+        // write the sections to their streams
+        tree.Write(treeSpan);
+        data.Write(dataSpan);
+
+        // reset positions back to 0 within the streams
+        tree.Position = 0;
+        data.Position = 0;
+        
+        // get default value from the data stream
+        var defaultValueBytes = ReadStream(data, elementSize, "default value");
+        var defaultValue = T.Deserialize(defaultValueBytes);
+        
+        // create the BlockMatrix
+        var blockMatrix = new BlockMatrix<T>(defaultValue, blockSize);
+        
+        // deserialize the blockMatrix
+        blockMatrix.DeserializeBlockMatrix(tree, data);
+        
+        // dispose the tree and data streams
+        tree.Dispose();
+        data.Dispose();
+    
+        // return the BlockMatrix
+        return blockMatrix;
+    }
+    
+    internal override void DeserializeBlockMatrix(Stream tree, Stream data)
+    {
+        while (true)
+        {
+            // if we have reached the end of the tree stream, stop deserializing
+            if (tree.Position == tree.Length)
+                return;
+            
+            // read the id
+            var id = ReadStream(tree, 1, "id");
+            
+            // if the id is 0, stop deserializing into this BlockMatrix
+            if (id[0] == 0) return;
+
+            // read the index the blockMatrixBlock within the parent _subBlocks array (4x2 (8) bytes)
+            var indexBytes = ReadStream(tree, 8, "BlockMatrix structure");
+            
+            // get the index
+            var index = new Vec2Long(
+                BitConverter.ToUInt32(indexBytes[..4]),
+                BitConverter.ToUInt32(indexBytes[4..8]));
+            
+            // calculate the absolutePos at the index
+            var indexAbsolutePos = AbsolutePos + index * _subBlockSize;
+
+            switch (id[0])
+            {
+                // if we are reading into a BlockMatrix,
+                case 1:
+                {
+                    // create a new BlockMatrix and add it to the _subBlocks array
+                    _subBlocks[index.X, index.Y] = new BlockMatrix<T>(DefaultValue, _subBlockSize, indexAbsolutePos);
+                    
+                    // and pass the call downwards, into it.
+                    _subBlocks[index.X, index.Y].DeserializeBlockMatrix(tree, data);
+                    
+                    break;
+                }
+                // otherwise, if we are reading into a BlockMatrixValue,
+                case 2:
+                {
+                    // read the value pointer (uint) from the tree stream
+                    var valuePointerBytes = ReadStream(tree, 4, "value pointer");
+                    var valuePointer = BitConverter.ToUInt32(valuePointerBytes) * T.SerializeLength;
+                    
+                    // use that pointer to get the actual value
+                    var valueBytes = ReadStream(data, T.SerializeLength, "value", valuePointer);
+                    var value = T.Deserialize(valueBytes);
+                    
+                    // and create a new BlockMatrixValue, with the correct parameters, and add it to the _subBlocks array
+                    _subBlocks[index.X, index.Y] = new BlockMatrixValue<T>(DefaultValue, indexAbsolutePos, _subBlockSize, value);
+                    
+                    break;
+                }
+            }
+            
+        }
+        
     }
 
     private void Compress()
@@ -575,16 +699,20 @@ internal class BlockMatrixValue<T> : BlockMatrixBlock<T> where T : class, IBlock
         return svgString;
     }
     
-    internal override void SerializeBlockMatrix(Stream tree, Stream data)
+    internal override void SerializeBlockMatrix(Stream tree, Stream data, Vec2Long index)
     {
+        // if the value is default, we don't need to include it in the serialization
+        if (_value == DefaultValue)
+            return;
+        
         // write the identifier for a BlockMatrixValue to the tree stream
         tree.Write(new byte[] { 2 });
         
         // write the default data for a BlockMatrixBlock to the tree stream
-        base.SerializeBlockMatrix(tree, data);
-
+        base.SerializeBlockMatrix(tree, data, index);
+        
         // write, and get the pointer of, the value in the data stream
-        var pointer = (int)data.Position / T.SerializeLength;
+        var pointer = (uint)data.Position / T.SerializeLength;
         data.Write(_value.Serialize());
         
         // write the pointer of the value to the tree stream
@@ -657,6 +785,39 @@ internal static class BlockMatrixUtil
 
         return 1;
 
+    }
+
+    /// <summary>
+    /// Reads a stream, advancing the position in the stream by the number of bytes read
+    /// </summary>
+    /// <param name="stream">the stream to read from</param>
+    /// <param name="length">the amount of bytes to read</param>
+    /// <param name="name">optional, the name of the object being read</param>
+    /// <param name="position">optional, the position within the stream to read from</param>
+    /// <returns>a span containing the read bytes</returns>
+    internal static ReadOnlySpan<byte> ReadStream(Stream stream, long length, string? name = null, long? position = null)
+    {
+        // change read position if supplied
+        if (position != null)
+            stream.Position = (long)position;
+
+        // store the starting position for use in case of an error
+        var startingPosition = stream.Position;
+        
+        // create the output span
+        var bytes = new Span<byte>(new byte[length]);
+        
+        // read from the stream
+        var count = stream.Read(bytes);
+        
+        // error if the stream if the amount of bytes read does not equal the amount of bytes to read in total
+        if (count != length)
+            Util.Error($"Failed to correctly read {name ?? "stream"}" +
+                       $" at position {startingPosition}..{startingPosition + length}" +
+                       $" ({count}/{length} bytes read)");
+        
+        // return the result
+        return bytes;
     }
     
 }

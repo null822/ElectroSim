@@ -1,6 +1,8 @@
 ﻿using System;
+using ElectroSim.Content.ComponentTypes;
 using ElectroSim.Maths;
 using ElectroSim.Maths.BlockMatrix;
+using ElectroSim.Registry;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 
@@ -134,7 +136,6 @@ public class Component : IBlockMatrixElement<Component>
     
     static bool IBlockMatrixElement<Component>.operator ==(Component a, Component b)
     {
-        
         return b != null && a != null && a.Details.ToString() == b.Details.ToString();
     }
     
@@ -160,11 +161,25 @@ public class Component : IBlockMatrixElement<Component>
     {
         return HashCode.Combine(Details);
     }
+
+    public override string ToString()
+    {
+        return Details.ToString();
+    }
+
+    // block matrix
     
     public ReadOnlySpan<byte> Serialize()
     {
-        return BitConverter.GetBytes(254);
+        return Details.GetName() == "Empty" ? BitConverter.GetBytes(0) : BitConverter.GetBytes(254);
+    }
+    
+    public static Component Deserialize(ReadOnlySpan<byte> bytes)
+    {
+        var value = bytes[0];
+        
+        return value == 0 ? Components.Empty : Components.Capacitor.GetVariant(1e-6);
     }
 
-    public static long SerializeLength { get; } = 1;
+    public static uint SerializeLength => 1;
 }

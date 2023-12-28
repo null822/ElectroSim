@@ -22,15 +22,15 @@ The structure is layed out as follows, and in this order:
 ## [ Header Section ]
 
 These values exist only once in a file, right at the beginning, and exist as metadata for the file/Block Matrix.
-This structure will always be exactly `32` bytes in size.
+This structure will always be exactly `24` bytes in size.
 
 ```
 long (8): width of the entire BlockMatrix
 long (8): height of the entire BlockMatrix
 
-long (8): element size (bytes) [denoted as `T` here] of one element
+uint (4): size (bytes) of one element [denoted as `T` in this file]
 
-long (8): pointer to the start of the `[ Data Section ]`
+uint (4): pointer to the start of the `[ Data Section ]`
 ```
 
 ## [ Tree Section ]
@@ -38,19 +38,19 @@ long (8): pointer to the start of the `[ Data Section ]`
 There are 2 types of structures in the `[Tree Section]`: one for a `BlockMatrix`, and one for a `BlockMatrixValue`.
 
 The structure of a `BlockMatrix` is as follows.  
-This structure will always be `34` bytes in size, excluding the `_subBlocks` value  
+This structure will always be `10` bytes in size, excluding the `_subBlocks` value  
 
 ```
 {
     byte (1): 1 // this will be stored in binary, to tell the deserializer that this is a BlockMatrix
 
-    // `AbsolutePos` field
-    long (8): xPos
-    long (8): yPos
+    // index within _subBlocks
+    uint (4): xIndex
+    uint (4): yIndex
 
-    // `BlockSize` field
-    long (8): xSize
-    long (8): ySize
+    // // `BlockSize` field
+    // long (8): xSize
+    // long (8): ySize
 
     // an array containing all of the sub blocks of this BlockMatrix (`_subBlocks` field)
     // really, this is just all of the sub blocks written one after the other
@@ -63,22 +63,22 @@ This structure will always be `34` bytes in size, excluding the `_subBlocks` val
 
 
 The structure of a `BlockMatrixValue` is as follows.  
-This structure will always be exactly `41` bytes in size.  
+This structure will always be exactly `13` bytes in size.  
 
 ```
 {
     byte (1): 2 // this will be stored in binary, to tell the deserializer that this is a BlockMatrixValue
 
-    // `AbsolutePos` field
-    long (8): xPos
-    long (8): yPos
+    // index within _subBlocks
+    uint (4): xIndex
+    uint (4): yIndex
 
-    // `BlockSize` field
-    long (8): xSize
-    long (8): ySize
+    // // `BlockSize` field
+    // long (8): xSize
+    // long (8): ySize
 
     // `_value` field
-    int (4): index to the value
+    uint (4): index to the value
     // this is relative to the start of the `[ Data Section ]`
     // the absolute pointer to the value within the file can be calculated by multiplying this value by `T` and adding it to
     // the pointer to the start of the `[ Data Section ]` (found in the `[Header Section]`)
